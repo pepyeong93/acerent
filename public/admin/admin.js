@@ -949,6 +949,57 @@ PAGES.notify = async () => {
 };
 
 // ── 회사 정보 · 관리자 계정 · 테스트 정리 ───────────
+// ── 광고 클릭 기록 (부정 클릭 확인) ─────────────────
+PAGES.adclicks = async (arg) => {
+  const q = new URLSearchParams(location.hash.split('?')[1] || '');
+  const days = +q.get('days') || 7, min = +q.get('min') || 3;
+  const ipSel = arg ? decodeURIComponent(arg) : '';
+  const [sum, rec] = await Promise.all([
+    api(`/api/admin/ad-clicks/summary?days=${days}&min=${min}`),
+    api('/api/admin/ad-clicks' + (ipSel ? '?ip=' + encodeURIComponent(ipSel) : '')),
+  ]);
+  const SRC = { naver: '네이버', google: '구글', kakao: '카카오' };
+  const src = (x) => String(x || '').split(',').filter(Boolean).map((v) => SRC[v] || v).join(' · ');
+  const go = (o) => { const p = new URLSearchParams({ days, min, ...o }); location.hash = '#adclicks' + (ipSel ? '/' + encodeURIComponent(ipSel) : '') + '?' + p.toString(); };
+  main.innerHTML = `<div class="a-title"><div><h1>광고 클릭 기록 (부정 클릭)</h1><p class="desc">네이버 · 구글 광고를 누르고 들어온 방문을 IP별로 모았습니다. 같은 IP가 하루에 여러 번 광고로 들어오면 부정 클릭일 수 있습니다. 의심 IP를 골라 <strong>복사</strong>한 뒤 네이버 검색광고 '광고 노출 제한 IP' · 구글 광고 'IP 제외'에 붙여 넣으세요. 홈페이지에서 막아도 광고비는 클릭할 때 이미 청구되므로, 차단은 광고 플랫폼에서 해야 합니다. 기록은 90일 보관 후 자동 삭제됩니다.</p></div></div>
+<div class="box box-pad" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+<label class="field" style="width:140px">기간<select class="select" id="acDays">${[1, 3, 7, 30, 90].map((d) => `<option value="${d}" ${d === days ? 'selected' : ''}>최근 ${d}일</option>`).join('')}</select></label>
+<label class="field" style="width:200px">의심 기준 (같은 IP 하루 광고 클릭)<select class="select" id="acMin">${[1, 2, 3, 5, 10].map((n) => `<option value="${n}" ${n === min ? 'selected' : ''}>${n}회 이상${n === 1 ? ' (전체 IP)' : ''}</option>`).join('')}</select></label>
+<div style="flex:1"></div>
+<div class="small">광고 클릭 <strong>${sum.total.clicks}</strong>회 · 방문 IP <strong>${sum.total.ips}</strong>개${sum.bySource.length ? ' · ' + sum.bySource.map((s) => `${esc(SRC[s.source] || s.source)} ${s.clicks}회`).join(' · ') : ''}</div>
+</div>
+<div class="box" style="margin-top:12px">
+<div style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)"><strong>의심 IP ${sum.ips.length}개</strong><span class="hint">하루 최대 클릭 수 많은 순</span><div style="flex:1"></div>
+<button class="btn btn-xs" id="acAll">전체 선택</button><button class="btn btn-xs btn-red" id="acCopy">선택한 IP 복사</button></div>
+<div class="scroll-x"><table class="a-table" style="min-width:900px"><thead><tr><th style="width:36px"></th><th>IP</th><th class="num">하루 최대</th><th class="num">전체 클릭</th><th class="num">들어온 날</th><th>매체 · 검색어</th><th>처음 · 마지막</th><th>국가 · 기기</th></tr></thead><tbody>
+${sum.ips.length ? sum.ips.map((x) => `<tr>
+<td><input type="checkbox" data-ip="${esc(x.ip)}" ${x.max_day >= min ? 'checked' : ''}></td>
+<td><a href="#adclicks/${encodeURIComponent(x.ip)}?days=${days}&min=${min}"><strong>${esc(x.ip)}</strong></a></td>
+<td class="num"><strong class="${x.max_day >= 5 ? 'red' : ''}">${x.max_day}</strong></td><td class="num">${x.clicks}</td><td class="num">${x.days}</td>
+<td>${esc(src(x.sources))}${x.keywords ? `<br><span class="hint">${esc(String(x.keywords).slice(0, 80))}</span>` : ''}</td>
+<td><span class="hint">${kst(x.first_at)}<br>${kst(x.last_at)}</span></td>
+<td><span class="hint">${esc(x.country || '')} · ${/Mobile|Android|iPhone/i.test(x.ua || '') ? '모바일' : 'PC'}</span></td></tr>`).join('') : `<tr><td colspan="8" class="muted" style="padding:40px;text-align:center">이 기간에 하루 ${min}회 이상 광고로 들어온 IP가 없습니다.${sum.total.clicks ? '' : '<br>광고를 시작하고, 네이버 검색광고는 "추적 기능(자동 추적 URL)"을 켜 주세요. 구글 광고는 "자동 태그 추가"가 기본으로 켜져 있습니다.'}</td></tr>`}
+</tbody></table></div></div>
+<div class="box" style="margin-top:16px">
+<div style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)"><strong>${ipSel ? esc(ipSel) + ' 클릭 기록' : '최근 광고 클릭 200건'}</strong>${ipSel ? `<button class="btn btn-xs" id="acBack">전체 보기</button>` : ''}</div>
+<div class="scroll-x"><table class="a-table" style="min-width:900px"><thead><tr><th>시각</th><th>IP</th><th>매체</th><th>검색어 · 캠페인</th><th>들어온 페이지</th><th>기기</th></tr></thead><tbody>
+${rec.items.length ? rec.items.map((x) => `<tr><td><span class="hint">${kst(x.created_at)}</span></td><td>${esc(x.ip)}</td><td>${esc(SRC[x.source] || x.source)}</td>
+<td>${esc(x.keyword || '-')}${x.campaign ? `<br><span class="hint">${esc(x.campaign)}</span>` : ''}</td><td><span class="hint">${esc(x.landing)}</span></td>
+<td><span class="hint" title="${esc(x.ua)}">${esc(x.country || '')} · ${/Mobile|Android|iPhone/i.test(x.ua || '') ? '모바일' : 'PC'}</span></td></tr>`).join('') : '<tr><td colspan="6" class="muted" style="padding:30px;text-align:center">기록이 없습니다.</td></tr>'}
+</tbody></table></div></div>`;
+  $('#acDays').addEventListener('change', (e) => go({ days: e.target.value }));
+  $('#acMin').addEventListener('change', (e) => go({ min: e.target.value }));
+  $('#acBack')?.addEventListener('click', () => { location.hash = `#adclicks?days=${days}&min=${min}`; });
+  $('#acAll').addEventListener('click', () => { const boxes = $('[data-ip]'); const all = boxes.every((b) => b.checked); boxes.forEach((b) => (b.checked = !all)); });
+  $('#acCopy').addEventListener('click', async () => {
+    const ips = $('[data-ip]').filter((b) => b.checked).map((b) => b.dataset.ip);
+    if (!ips.length) return toast('복사할 IP를 선택해 주세요.', true);
+    const text = ips.join('\n');
+    try { await navigator.clipboard.writeText(text); toast(`IP ${ips.length}개를 복사했습니다. 광고 플랫폼의 IP 차단 칸에 붙여 넣으세요.`); }
+    catch { window.prompt('아래 IP 목록을 복사하세요.', ips.join(', ')); }
+  });
+};
+
 PAGES.settings = async () => {
   const [{ settings: s }, { users }] = await Promise.all([api('/api/admin/settings'), api('/api/admin/users')]);
   const f = (k, label) => `<label class="field">${label}<input class="input" data-s="${k}" value="${esc(s[k] || '')}"></label>`;

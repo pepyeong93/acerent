@@ -11,6 +11,7 @@ import { registerPublic } from './routes/public.js';
 import { registerAdmin } from './routes/admin.js';
 import { registerQuote } from './routes/quote.js';
 import { registerCommunity } from './routes/community.js';
+import { registerAdClicks, purgeAdClicks } from './routes/adclicks.js';
 import { serveImage } from './routes/upload.js';
 import { legacyRedirect, robotsTxt, sitemapXml } from './lib/legacy.js';
 
@@ -19,6 +20,7 @@ registerPublic(router);
 registerAdmin(router);
 registerQuote(router);
 registerCommunity(router);
+registerAdClicks(router);
 
 // /api/admin/file 은 폼 POST(페이지 이동)라 JSON 오류 대신 204 로 답하도록 안에서 직접 로그인 확인
 const OPEN_ADMIN = new Set(['/api/admin/me', '/api/admin/setup', '/api/admin/login', '/api/admin/logout', '/api/admin/file']);
@@ -70,8 +72,9 @@ export default {
     }
   },
 
-  // 10분마다 실패한 알림 메일 재발송
+  // 10분마다 실패한 알림 메일 재발송 · 90일 지난 광고 클릭 기록 삭제
   async scheduled(event, env, ctx) {
     ctx.waitUntil(retryFailed(env));
+    ctx.waitUntil(purgeAdClicks(env).catch(() => {}));
   },
 };

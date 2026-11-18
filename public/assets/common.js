@@ -52,7 +52,43 @@ export async function site() {
 }
 
 // 머리·꼬리 공통 처리: 모바일 메뉴, 전화번호·주소 채우기
+// 광고로 들어온 방문 기록 (부정 클릭 확인용 · 관리자 '광고 클릭 기록')
+//   구글: gclid · gbraid · wbraid (자동 태그) / 네이버 검색광고: NaPm · n_media · n_query (추적 기능)
+//   그 외: utm_medium 이 cpc · ppc · paid · ad 등이면 utm_source 를 매체로
+//   같은 탭에서 같은 주소를 다시 열어도(새로고침) 한 번만 보냄
+function trackAdClick() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const g = q.get('gclid') || q.get('gbraid') || q.get('wbraid');
+    const naver = q.get('NaPm') || q.get('n_media') || q.get('n_query') || q.get('n_keyword');
+    const medium = (q.get('utm_medium') || '').toLowerCase();
+    const paid = /^(cpc|ppc|paid|ad|ads|cpm|display|sa)$/.test(medium);
+    let source = '';
+    if (g) source = 'google';
+    else if (naver) source = 'naver';
+    else if (paid) source = (q.get('utm_source') || 'other').toLowerCase();
+    if (!source) return;
+    const clickId = g || q.get('NaPm') || '';
+    const key = 'adtrk:' + (clickId || location.search);
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch {}
+    fetch('/api/track/ad', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        source,
+        keyword: q.get('n_keyword') || q.get('n_query') || q.get('utm_term') || q.get('keyword') || '',
+        campaign: q.get('utm_campaign') || q.get('n_campaign_type') || q.get('n_ad_group') || '',
+        clickId,
+        landing: location.pathname,
+        referrer: document.referrer || '',
+      }),
+    }).catch(() => {});
+  } catch {}
+}
+
 export async function initLayout() {
+  trackAdClick();
   const btn = $('.menu-btn');
   if (btn) btn.addEventListener('click', () => {
     const g = $('.gnb');
