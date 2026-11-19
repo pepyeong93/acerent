@@ -4,6 +4,7 @@
 import { HttpError, bad, json, readJson, cleanText, cleanPhone, int, nextNo } from '../lib/util.js';
 import { notifyAdmins, buildMailHtml } from '../lib/mail.js';
 import { echoFile } from '../lib/filedown.js';
+import { docList, DOC_TYPES } from './quoteReview.js';
 import { currentAdmin } from '../lib/auth.js';
 import { loadQuoteConfig, computeQuote, toPublic, cleanInput, vehicleData, residualGroups, DEFAULT_QUOTE_CONFIG, PUBLIC_CONFIG_KEYS, TERMS, INS_FIELDS, modelList } from '../lib/rentcalc.js';
 import { hashPassword, verifyPassword } from '../lib/auth.js';
@@ -233,10 +234,12 @@ export function registerQuote(r) {
     const size = 50;
     const where = [], args = [];
     if (user) { where.push('user_id = ?'); args.push(user); }
+    const st = url.searchParams.get('st');
+    if (['quote', 'review', 'approved', 'rejected'].includes(st)) { where.push('review_status = ?'); args.push(st); }
     if (q) { where.push('(no LIKE ? OR customer_name LIKE ? OR vehicle LIKE ? OR user_name LIKE ? OR user_company LIKE ?)'); args.push(...Array(5).fill(`%${q}%`)); }
     const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const [rows, cnt, users] = await Promise.all([
-      env.DB.prepare(`SELECT id, no, user_id, user_name, user_company, username, customer_type, customer_name, vehicle, price, summary, created_at FROM quote_logs ${w} ORDER BY id DESC LIMIT ? OFFSET ?`).bind(...args, size, (page - 1) * size).all(),
+      env.DB.prepare(`SELECT id, no, user_id, user_name, user_company, username, customer_type, customer_name, vehicle, price, summary, created_at, review_status, review_requested_at, (SELECT COUNT(*) FROM quote_docs d WHERE d.log_id = quote_logs.id) AS docs FROM quote_logs ${w} ORDER BY id DESC LIMIT ? OFFSET ?`).bind(...args, size, (page - 1) * size).all(),
       env.DB.prepare(`SELECT COUNT(*) AS n FROM quote_logs ${w}`).bind(...args).first(),
       env.DB.prepare('SELECT user_id, MAX(user_name) AS user_name, MAX(user_company) AS user_company, COUNT(*) AS n FROM quote_logs GROUP BY user_id ORDER BY n DESC').all(),
     ]);
@@ -245,7 +248,7 @@ export function registerQuote(r) {
   r.get('/api/admin/quote-logs/:id', async ({ env, params }) => {
     const row = await env.DB.prepare('SELECT * FROM quote_logs WHERE id = ?').bind(int(params.id)).first();
     if (!row) throw new HttpError(404, '견적 기록을 찾을 수 없습니다.');
-    return json({ log: { ...row, input: JSON.parse(row.input_json || '{}'), result: JSON.parse(row.result_json || '{}') } });
+    return json({ log: { ...row, input: JSON.parse(row.input_json || '{}'), result: JSON.parse(row.result_json || '{}') }, docs: await docList(env, row.id), docTypes: DOC_TYPES });
   });
 
   // ── 관리자: 견적 사용자 계정 관리 (index.js 에서 관리자 로그인 확인) ──

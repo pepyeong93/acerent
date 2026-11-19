@@ -153,7 +153,7 @@ export function registerAdmin(r) {
     const ym = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
     const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const q = (sql, ...a) => env.DB.prepare(sql).bind(...a).first();
-    const [p, t, rv, iq, m1, m2, mf, qu, rw] = await Promise.all([
+    const [p, t, rv, iq, m1, m2, mf, qu, rw, qr] = await Promise.all([
       q(`SELECT COUNT(*) AS n FROM reservations WHERE status = 'pending'`),
       q(`SELECT COUNT(*) AS n FROM reservations WHERE status IN ('pending','confirmed') AND substr(pickup_at,1,10) = ?`, today),
       q(`SELECT COUNT(*) AS n FROM applications WHERE status = 'review'`),
@@ -163,8 +163,9 @@ export function registerAdmin(r) {
       q(`SELECT COUNT(*) AS n FROM mail_log WHERE status = 'failed'`),
       q(`SELECT COUNT(*) AS n FROM quote_users WHERE status = 'pending'`),
       q(`SELECT COUNT(*) AS n FROM reviews WHERE status = 'pending' OR (status = 'published' AND coupon = 'none')`),
+      q(`SELECT COUNT(*) AS n FROM quote_logs WHERE review_status = 'review'`),
     ]);
-    return json({ pendingShort: p.n, todayPickup: t.n, reviewLong: rv.n, waitInquiry: iq.n, monthTotal: m1.n + m2.n, mailFailed: mf.n, pendingQuoteUsers: qu.n, reviewTodo: rw.n });
+    return json({ pendingShort: p.n, todayPickup: t.n, reviewLong: rv.n, waitInquiry: iq.n, monthTotal: m1.n + m2.n, mailFailed: mf.n, pendingQuoteUsers: qu.n, reviewTodo: rw.n, quoteReview: qr.n });
   });
 
   // ── 단기 예약 ────────────────────────────────────────
