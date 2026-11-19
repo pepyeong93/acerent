@@ -136,7 +136,7 @@ async function writeReview() {
       const r = await api('/api/reviews', { method: 'POST', body: fd });
       body.innerHTML = `<div class="done-box"><h2>소중한 후기 감사합니다.</h2><p style="margin:0;color:#444;line-height:1.8">${
         r.status === 'published' ? '후기가 등록되었습니다.' : '담당자 확인 후 게시됩니다.'
-      }<br>이벤트 대상 여부를 확인한 뒤 남겨주신 번호로 커피 쿠폰을 보내 드립니다.</p></div><div style="display:flex;justify-content:center"><button class="btn" id="toRv">후기 목록</button></div>`;
+      }<br>후기를 확인한 뒤, 남겨주신 번호로 다음에 예약하시면 대여료에서 1만원을 할인해 드립니다.</p></div><div style="display:flex;justify-content:center"><button class="btn" id="toRv">후기 목록</button></div>`;
       $('#toRv').addEventListener('click', () => review());
     } catch (e) {
       err.textContent = e.message;

@@ -286,7 +286,7 @@ ${mk === 'renew' ? '<p class="hint" style="margin:0;padding:10px 16px;border-bot
       ...d.reservations.map((x) => [x.created_at, '단기 예약', `${x.no} · ${x.model_name} · ${dt(x.pickup_at)} ~ ${dt(x.return_at)} · ${x.location_name} · ${won(x.total_amt)}원`, RES_ST[x.status]?.[0]]),
       ...d.applications.map((x) => [x.created_at, x.applicant_type === 'corp' ? '법인 견적' : '중장기 신청', `${x.no} · ${x.vehicle_name || ''}${x.term ? ` · ${x.term}개월` : ''}${x.monthly ? ` · 월 ${won(x.monthly)}원` : ''}`, APP_ST[x.status]?.[0]]),
       ...d.inquiries.map((x) => [x.created_at, '1:1 문의', `${x.type} · ${x.title}`, x.status === 'done' ? '답변완료' : '답변대기']),
-      ...(d.reviews || []).map((x) => [x.created_at, '이용후기', `${'★'.repeat(x.rating)} ${x.title}`, x.coupon === 'sent' ? '쿠폰 발송' : REV_ST[x.status]]),
+      ...(d.reviews || []).map((x) => [x.created_at, '이용후기', `${'★'.repeat(x.rating)} ${x.title}`, x.coupon === 'sent' ? '할인 적용' : REV_ST[x.status]]),
     ].sort((a, b) => b[0].localeCompare(a[0]));
     $('#detail').innerHTML = `<div class="split">
 <div class="l box box-pad" style="display:flex;flex-direction:column;gap:12px">
@@ -348,7 +348,7 @@ ${q.attachments.length ? `<div class="photos">${q.attachments.map((a) => `<a hre
 };
 
 
-// ── 이용후기 · 커피 쿠폰 ───────────────────────────
+// ── 이용후기 · 재방문 할인 ───────────────────────────
 PAGES.reviews = async () => {
   const tab = sessionStorage.getItem('revTab') || 'todo';
   const [{ items, counts }, { settings: s }] = await Promise.all([api('/api/admin/reviews'), api('/api/admin/settings')]);
@@ -356,20 +356,20 @@ PAGES.reviews = async () => {
   const TABS = [['todo', '처리할 후기'], ['pending', '확인 대기'], ['published', '게시 중'], ['hidden', '숨김'], ['all', '전체']];
   const shown = items.filter((x) => (tab === 'all' ? true : tab === 'todo' ? todo(x) : x.status === tab));
   const n = { todo: items.filter(todo).length, all: items.length, ...counts };
-  const COUPON = { none: '<span class="st st-wait">미발송</span>', sent: '<span class="st st-ok">발송 완료</span>', skip: '<span class="st st-off">대상 아님</span>' };
-  main.innerHTML = `<div class="a-title"><div><h1>이용후기 · 커피 쿠폰</h1><p class="desc">링크 · 연락처 · 금칙어가 들어간 글은 자동으로 '확인 대기'가 됩니다. 쿠폰을 보낸 뒤 '발송 완료'를 눌러 기록하세요 (같은 번호로 이전에 받은 쿠폰 수가 함께 보입니다).</p></div><a class="btn btn-sm" href="/support.html?tab=review" target="_blank" rel="noopener">홈페이지에서 보기</a></div>
+  const COUPON = { none: '<span class="st st-wait">할인 미사용</span>', sent: '<span class="st st-ok">할인 적용 완료</span>', skip: '<span class="st st-off">대상 아님</span>' };
+  main.innerHTML = `<div class="a-title"><div><h1>이용후기 · 재방문 할인</h1><p class="desc">링크 · 연락처 · 금칙어가 들어간 글은 자동으로 '확인 대기'가 됩니다. 후기를 남긴 번호로 예약이 들어와 1만원을 할인했으면 '할인 적용 처리'를 눌러 기록하세요 (같은 번호로 이전에 받은 할인 수가 함께 보입니다).</p></div><a class="btn btn-sm" href="/support.html?tab=review" target="_blank" rel="noopener">홈페이지에서 보기</a></div>
 <div class="tabs-line" role="tablist">${TABS.map(([k, v]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-t="${k}">${v} ${n[k] ? `<span class="hint">${n[k]}</span>` : ''}</button>`).join('')}</div>
-<div class="box scroll-x"><table class="a-table" style="min-width:980px"><thead><tr><th>접수</th><th>고객</th><th style="width:40%">후기</th><th>게시</th><th>커피 쿠폰</th><th></th></tr></thead><tbody>
+<div class="box scroll-x"><table class="a-table" style="min-width:980px"><thead><tr><th>접수</th><th>고객</th><th style="width:40%">후기</th><th>게시</th><th>재방문 할인</th><th></th></tr></thead><tbody>
 ${shown.length ? shown.map((x) => `<tr data-id="${x.id}">
 <td><strong>${esc(x.no)}</strong><br><span class="hint">${kst(x.created_at)}</span></td>
 <td><strong>${esc(x.name)}</strong><br><a href="tel:${esc(x.phone)}">${esc(x.phone)}</a><br><span class="hint">${x.phone_verified ? '문자 인증 ✓' : '인증 없음'} · 마케팅 ${x.marketing_agree ? '<strong class="red">동의</strong>' : '미동의'}</span>${x.res_n ? `<br><span class="hint">홈페이지 예약 ${x.res_n}건</span>` : ''}</td>
 <td><span style="color:var(--red)">${'★'.repeat(x.rating)}<span style="color:#ccc">${'★'.repeat(5 - x.rating)}</span></span> <strong>${esc(x.title)}</strong>${x.flag ? ` <span class="st st-wait">자동 차단: ${esc(x.flag)}</span>` : ''}<br><span class="hint">${[x.car_model, x.use_month].filter(Boolean).map(esc).join(' · ')}</span>
 <div style="white-space:pre-line;font-size:13px;line-height:1.7;margin-top:4px;max-height:120px;overflow:auto">${esc(x.body)}</div>
 ${x.photos.length ? `<div style="display:flex;gap:4px;margin-top:6px">${x.photos.map((p) => `<a href="${esc(p)}" target="_blank" rel="noopener"><img src="${esc(p)}" alt="" style="width:64px;height:48px;object-fit:cover"></a>`).join('')}</div>` : ''}
-<input class="input" data-memo value="${esc(x.admin_memo)}" placeholder="직원 메모 (쿠폰 번호 등)" style="height:34px;margin-top:6px;font-size:13px"></td>
+<input class="input" data-memo value="${esc(x.admin_memo)}" placeholder="직원 메모 (할인 적용 예약번호 등)" style="height:34px;margin-top:6px;font-size:13px"></td>
 <td><select class="select" data-st style="height:36px;min-width:110px">${opts(Object.entries(REV_ST), x.status)}</select></td>
-<td>${COUPON[x.coupon] || ''}${x.coupon_at ? `<br><span class="hint">${kst(x.coupon_at)}</span>` : ''}${x.prev_coupons ? `<br><strong class="red small">이 번호 이전 쿠폰 ${x.prev_coupons}회</strong>` : ''}
-<div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${x.coupon !== 'sent' ? '<button class="btn btn-xs btn-red" data-cp="sent">발송 완료 처리</button>' : '<button class="btn btn-xs" data-cp="none">발송 취소</button>'}${x.coupon === 'none' ? '<button class="btn btn-xs" data-cp="skip">대상 아님</button>' : ''}</div></td>
+<td>${COUPON[x.coupon] || ''}${x.coupon_at ? `<br><span class="hint">${kst(x.coupon_at)}</span>` : ''}${x.prev_coupons ? `<br><strong class="red small">이 번호 이전 할인 ${x.prev_coupons}회</strong>` : ''}
+<div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${x.coupon !== 'sent' ? '<button class="btn btn-xs btn-red" data-cp="sent">할인 적용 처리</button>' : '<button class="btn btn-xs" data-cp="none">적용 취소</button>'}${x.coupon === 'none' ? '<button class="btn btn-xs" data-cp="skip">대상 아님</button>' : ''}</div></td>
 <td style="white-space:nowrap"><button class="btn btn-xs" data-save>메모 저장</button><br><button class="btn-link" data-del style="margin-top:6px">삭제</button></td></tr>`).join('') : '<tr><td colspan="6" class="muted" style="padding:40px;text-align:center">해당하는 후기가 없습니다.</td></tr>'}
 </tbody></table></div>
 <div class="box box-pad" style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
@@ -384,7 +384,7 @@ ${x.photos.length ? `<div style="display:flex;gap:4px;margin-top:6px">${x.photos
   const patch = async (tr, body, msg) => { await run(() => api('/api/admin/reviews/' + tr.dataset.id, { method: 'PATCH', body }), msg); route(); refreshCounts(); };
   $$('tr[data-id]').forEach((tr) => {
     $('[data-st]', tr)?.addEventListener('change', (e) => patch(tr, { status: e.target.value }, '게시 상태를 바꿨습니다.'));
-    $$('[data-cp]', tr).forEach((b) => b.addEventListener('click', () => patch(tr, { coupon: b.dataset.cp, admin_memo: $('[data-memo]', tr).value }, '쿠폰 상태를 저장했습니다.')));
+    $$('[data-cp]', tr).forEach((b) => b.addEventListener('click', () => patch(tr, { coupon: b.dataset.cp, admin_memo: $('[data-memo]', tr).value }, '할인 상태를 저장했습니다.')));
     $('[data-save]', tr)?.addEventListener('click', () => patch(tr, { admin_memo: $('[data-memo]', tr).value }, '메모를 저장했습니다.'));
     $('[data-del]', tr)?.addEventListener('click', async () => {
       if (!(await confirmBox('이 후기와 사진을 삭제할까요? 되돌릴 수 없습니다. (광고 글이 아니면 \'숨김\'을 권장합니다)', '삭제'))) return;
@@ -418,7 +418,7 @@ PAGES.posts = async () => {
 <div class="grid2"><label class="field">게시판<select class="select" id="pBoard">${opts(Object.entries(NAME), p.board)}</select></label><label class="field">${board === 'faq' ? '질문' : '제목'}<input class="input" id="pTitle" value="${esc(p.title)}"></label></div>
 <div id="evFields" style="display:flex;flex-direction:column;gap:12px" ${p.board === 'event' ? '' : 'hidden'}>
 <div class="grid2"><label class="field">시작일<input class="input" id="pStart" type="date" value="${esc(p.start_date || '')}"></label><label class="field">종료일 (비우면 상시)<input class="input" id="pEnd" type="date" value="${esc(p.end_date || '')}"></label></div>
-<label class="field">한 줄 소개 (목록 · 메인에 표시)<input class="input" id="pSummary" value="${esc(p.summary || '')}" maxlength="200" placeholder="예: 후기 남기면 스타벅스 아메리카노 쿠폰 증정"></label>
+<label class="field">한 줄 소개 (목록 · 메인에 표시)<input class="input" id="pSummary" value="${esc(p.summary || '')}" maxlength="200" placeholder="예: 후기 남기면 다음 대여 때 1만원 할인"></label>
 <div class="field">대표 이미지 (목록 · 메인 · 상세 맨 위, 가로 16:9 권장)<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div id="pMainImg" style="width:200px;aspect-ratio:16/9;background:var(--bg-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden" class="hint">없음</div><label class="btn btn-sm" style="cursor:pointer">이미지 선택<input type="file" id="pMainFile" accept="image/*" hidden></label><button type="button" class="btn-link" id="pMainDel">삭제</button></div></div>
 <div class="grid2"><label class="field">참여 버튼 문구<input class="input" id="pCtaL" value="${esc(p.cta_label || '')}" placeholder="예: 후기 쓰러 가기"></label><label class="field">참여 버튼 링크 (사이트 안 주소)<input class="input" id="pCtaH" value="${esc(p.cta_link || '')}" placeholder="/support.html?tab=review"></label></div>
 </div>

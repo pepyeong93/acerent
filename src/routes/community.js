@@ -130,7 +130,7 @@ export function registerCommunity(r) {
 
     const html = buildMailHtml({
       title: `[이용후기] ${no}`,
-      intro: status === 'published' ? '홈페이지에 이용후기가 등록되었습니다. 확인 후 커피 쿠폰을 보내 주세요.' : `이용후기가 '확인 대기'로 들어왔습니다${flag ? ` (자동 차단: ${flag})` : ''}. 관리자에서 게시 여부를 정해 주세요.`,
+      intro: status === 'published' ? '홈페이지에 이용후기가 등록되었습니다. 이 번호로 다음 예약 시 재방문 1만원 할인을 적용해 주세요.' : `이용후기가 '확인 대기'로 들어왔습니다${flag ? ` (자동 차단: ${flag})` : ''}. 관리자에서 게시 여부를 정해 주세요.`,
       rows: [['접수번호', no], ['고객', `${name} · ${phone}`], ['별점', '★'.repeat(rating)], ['이용 차종', carModel], ['이용 시기', useMonth], ['제목', title], ['내용', body], ['마케팅 수신', marketing ? '동의' : '미동의'], ['문자 인증', verified ? '완료' : '미사용']],
       linkUrl: `${env.SITE_URL}/admin/#reviews`, linkText: '관리자에서 확인하기',
     });
@@ -161,7 +161,7 @@ export function registerCommunity(r) {
       sets.push('status = ?'); vals.push(b.status);
     }
     if (b.coupon !== undefined) {
-      if (!['none', 'sent', 'skip'].includes(b.coupon)) throw bad('쿠폰 상태를 확인해 주세요.');
+      if (!['none', 'sent', 'skip'].includes(b.coupon)) throw bad('할인 상태를 확인해 주세요.');
       sets.push('coupon = ?', `coupon_at = CASE WHEN ? = 'sent' THEN datetime('now') ELSE NULL END`); vals.push(b.coupon, b.coupon);
     }
     if (b.admin_memo !== undefined) { sets.push('admin_memo = ?'); vals.push(cleanText(b.admin_memo, 500)); }
