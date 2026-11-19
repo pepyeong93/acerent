@@ -48,6 +48,7 @@ export function registerPublic(r) {
     return json({
       phone: s.site_phone,
       messenger: s.site_messenger,
+      kakaoUrl: s.site_kakao_url || '', lineUrl: s.site_line_url || '', wechatUrl: s.site_wechat_url || '',
       address: s.company_address,
       bizNo: s.company_biz_no,
       ceo: s.company_ceo,

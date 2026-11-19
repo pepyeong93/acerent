@@ -42,11 +42,28 @@ h1, h2, h3 { margin: 0; line-height: 1.35; }
 .tel span { font-size: 12px; color: var(--gray); }
 .tel strong { font-size: 24px; color: var(--red); letter-spacing: 0; }
 .menu-btn { display: none; width: 44px; height: 44px; border: 1px solid var(--line); background: #fff; }
+/* 헤더 메신저 버튼 (카카오톡 · 라인 · 위챗) — PC 는 전화번호 왼쪽, 모바일은 로고와 메뉴 버튼 사이 */
+.msg-links { display: flex; gap: 8px; align-items: center; order: 1; }
+.header .tel { order: 2; }
+.msg-btn { width: 38px; height: 38px; border-radius: 50%; border: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.msg-kakao { background: #FEE500; }
+.msg-line { background: #06C755; }
+.msg-wechat { background: #07C160; }
+.msg-btn:hover { filter: brightness(.95); }
+.msg-dlg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.msg-dlg-box { background: #fff; width: 100%; max-width: 340px; padding: 24px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.msg-dlg-box strong { font-size: 18px; }
+.msg-dlg-box p { margin: 0; font-size: 14px; line-height: 1.7; color: #444; }
+.msg-dlg-id { font-size: 22px; font-weight: 700; color: var(--red); border: 1px solid var(--line); padding: 10px; }
+.msg-dlg-btns { display: flex; gap: 8px; } .msg-dlg-btns .btn { flex: 1; height: 44px; }
 @media (max-width: 860px) {
   .header .wrap { min-height: 64px; }
   .logo img { height: 40px; }
   .tel { display: none; }
   .menu-btn { display: inline-flex; align-items: center; justify-content: center; }
+  .msg-links { order: 0; margin-left: auto; gap: 6px; }
+  .msg-btn { width: 36px; height: 36px; }
+  .header .wrap { gap: 10px; }
   .gnb { display: none; width: 100%; flex-direction: column; gap: 0; font-size: 16px; padding-bottom: 8px; }
   .gnb.open { display: flex; }
   .gnb a { padding: 12px 0; border-bottom: 1px solid var(--line-soft); }

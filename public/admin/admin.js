@@ -1005,7 +1005,7 @@ PAGES.settings = async () => {
   const f = (k, label) => `<label class="field">${label}<input class="input" data-s="${k}" value="${esc(s[k] || '')}"></label>`;
   main.innerHTML = `<div class="a-title"><h1>회사 정보 · 관리자 계정</h1></div>
 <div class="box box-pad" style="display:flex;flex-direction:column;gap:12px"><h2 style="font-size:16px">홈페이지 표시 정보</h2>
-<div class="grid2">${f('site_phone', '대표전화')}${f('site_messenger', '카카오톡 · 라인 · 위챗 ID')}${f('company_address', '주소')}${f('company_biz_no', '사업자등록번호')}${f('company_ceo', '대표자')}${f('short_min_age_note', '단기 운전자 조건 문구')}</div>
+<div class="grid2">${f('site_phone', '대표전화')}${f('site_messenger', '카카오톡 · 라인 · 위챗 ID')}${f('site_kakao_url', '카카오톡 채널 주소 (선택, 예: https://pf.kakao.com/_xxxx/chat — 비우면 ID 안내 창)')}${f('site_line_url', '라인 주소 (선택, 비우면 https://line.me/ti/p/~ID)')}${f('site_wechat_url', '위챗 주소 (선택, 비우면 ID 안내 창)')}${f('company_address', '주소')}${f('company_biz_no', '사업자등록번호')}${f('company_ceo', '대표자')}${f('short_min_age_note', '단기 운전자 조건 문구')}</div>
 <div style="display:flex;justify-content:flex-end"><button class="btn btn-red btn-sm" id="sSave">저장</button></div></div>
 <div class="split"><div class="l box box-pad" style="display:flex;flex-direction:column;gap:10px"><h2 style="font-size:16px">관리자 계정</h2>
 <table class="a-table"><tbody>${users.map((u) => `<tr><td><strong>${esc(u.username)}</strong> ${esc(u.name)}</td><td class="hint">${kst(u.created_at).slice(0, 10)}</td><td style="text-align:right">${u.id === me.id ? '<span class="hint">본인</span>' : `<button class="btn btn-xs" data-resetpw="${u.id}" data-name="${esc(u.username)}">비밀번호 재설정</button> <button class="btn-link" data-deluser="${u.id}">삭제</button>`}</td></tr>`).join('')}</tbody></table>
