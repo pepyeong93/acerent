@@ -6,7 +6,8 @@ import {
   updateKeywordBid, pauseKeyword, addKeywords, updateCampaignBudget,
 } from './naverAds.js';
 import { notifyAdmins, buildMailHtml } from './mail.js';
-import { createSetup, deleteCampaign, ensureSetupAds } from './adsSetup.js';
+import { createSetup, deleteCampaign, ensureSetupAds, SETUP_PLAN } from './adsSetup.js';
+import { adsApi } from './naverAds.js';
 
 export const DEFAULT_CONFIG = {
   dailyBudget: 50000,        // 하루 최대 광고비 (원) — 캠페인 하루 예산 합이 넘으면 낮추자고 제안
@@ -326,6 +327,37 @@ function proposalMail(made) {
   return made.map((m) => [TYPE_NAME[m.type] || m.type, `${m.keyword}${m.type === 'bid' ? ` : ${won(m.from)} → ${won(m.to)}` : m.type === 'add_keyword' ? ` (입찰가 ${won(m.to)})` : m.type === 'budget' ? ` : ${won(m.from)} → ${won(m.to)}` : ''}`]);
 }
 
+// ── 광고 검수 상태: 우리 캠페인의 광고마다 검수 결과를 읽어 저장, 모두 통과하면(캠페인이 꺼져 있으면) 한 번 알림 ──
+const INSPECT = { APPROVED: '검수 통과', UNDER_REVIEW: '검수 중', PENDING: '검수 대기', REJECTED: '검수 반려', LIMITED: '일부 제한' };
+export async function checkReview(env, campaigns) {
+  const db = env.DB;
+  const camp = (campaigns || []).find((c) => c.name === SETUP_PLAN.campaign.name);
+  if (!camp) return null;
+  const { results: groups } = await db.prepare('SELECT DISTINCT adgroup_id, adgroup_name FROM ad_keywords WHERE campaign_id = ?').bind(camp.nccCampaignId).all();
+  const ads = [];
+  for (const g of groups.slice(0, 10)) {
+    const list = (await adsApi(env, 'GET', '/ncc/ads', { query: { nccAdgroupId: g.adgroup_id } })) || [];
+    for (const a of list) ads.push({ group: g.adgroup_name, inspect: a.inspectStatus || '', label: INSPECT[a.inspectStatus] || a.inspectStatus || '-', status: a.status || '', reason: a.statusReason || '' });
+  }
+  const row = await db.prepare(`SELECT value FROM settings WHERE key = 'ads_review'`).first();
+  let prev = {};
+  try { prev = JSON.parse((row && row.value) || '{}'); } catch {}
+  const allApproved = ads.length > 0 && ads.every((a) => a.inspect === 'APPROVED');
+  const rejected = ads.filter((a) => a.inspect === 'REJECTED');
+  const rv = { checkedAt: new Date().toISOString(), campaignOn: !camp.userLock, ads, allApproved, notifiedApproved: prev.notifiedApproved || false, notifiedRejected: prev.notifiedRejected || '' };
+  if (allApproved && camp.userLock && !rv.notifiedApproved) {
+    rv.notifiedApproved = true;
+    await notifyAdmins(env, { kind: '광고 제안', refNo: '', subject: '[네이버 광고] 광고 검수 통과 · 캠페인을 켤 수 있습니다', html: buildMailHtml({ title: '네이버 광고 검수 완료', linkUrl: 'https://www.acerentcar.co.kr/admin/#ads', linkText: '관리자 화면 보기', intro: `캠페인 '${camp.name}'의 광고 ${ads.length}개가 모두 검수를 통과했습니다. 네이버 광고시스템에서 캠페인을 켜면 광고가 나가기 시작합니다.`, rows: ads.map((a) => [a.group, a.label]) }) }).catch(() => {});
+  }
+  const rejKey = rejected.map((a) => a.group).join(',');
+  if (rejected.length && rejKey !== rv.notifiedRejected) {
+    rv.notifiedRejected = rejKey;
+    await notifyAdmins(env, { kind: '광고 제안', refNo: '', subject: `[네이버 광고] 광고 검수 반려 ${rejected.length}건`, html: buildMailHtml({ title: '네이버 광고 검수 반려', linkUrl: 'https://www.acerentcar.co.kr/admin/#ads', linkText: '관리자 화면 보기', intro: '검수에서 반려된 광고가 있습니다. 문구를 고쳐야 합니다.', rows: rejected.map((a) => [a.group, a.reason || a.label]) }) }).catch(() => {});
+  }
+  await db.prepare(`INSERT INTO settings (key, value) VALUES ('ads_review', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify(rv)).run();
+  return rv;
+}
+
 // ── 매시간 ──
 //   동기화가 아직 한 바퀴 안 끝났으면 이어서 동기화만 (다음 실행에서 분석)
 export async function runHourly(env, { forceSync = false } = {}) {
@@ -343,6 +375,7 @@ export async function runHourly(env, { forceSync = false } = {}) {
     const pr = new Proposer(db);
     const made = [...(await analyzeBids(env, cfg, pr)), ...(await checkBudgets(env, cfg, st.campaigns, pr))];
     await pr.flush();
+    await checkReview(env, st.campaigns).catch(() => {});
     const kw = await db.prepare('SELECT COUNT(*) n FROM ad_keywords').first();
     await logRun(db, 'hourly', true, `키워드 ${kw.n}개 · 새 제안 ${made.length}건`);
     if (made.length) {

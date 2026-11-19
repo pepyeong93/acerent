@@ -17,7 +17,10 @@ export function registerAds(r) {
       db.prepare('SELECT kind, ok, message, created_at FROM ad_runs ORDER BY id DESC LIMIT 10').all(),
       db.prepare('SELECT COUNT(*) n, SUM(paused = 0) live FROM ad_keywords').first(),
     ]);
-    return json({ enabled: adsEnabled(env), config: cfg, today, pending: pending.n, runs: runs.results, keywords: kwCount });
+    const rvRow = await db.prepare(`SELECT value FROM settings WHERE key = 'ads_review'`).first();
+    let review = null;
+    try { review = JSON.parse((rvRow && rvRow.value) || 'null'); } catch {}
+    return json({ enabled: adsEnabled(env), config: cfg, today, pending: pending.n, runs: runs.results, keywords: kwCount, review });
   });
 
   // 지금 바로 분석 / 리포트
