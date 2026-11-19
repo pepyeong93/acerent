@@ -153,8 +153,8 @@ $('#opts').addEventListener('change', (e) => {
 });
 
 // ── 입력 칸 ───────────────────────────────────────────
-const BIND = ['prod', 'ext', 'int', 'extra', 'del1', 'del2', 'del3', 'tint', 'bb', 'carLim', 'otherName', 'otherAmt', 'ctype', 'cname', 'mgr', 'tel'];
-const MONEY = ['extra', 'del1', 'del2', 'del3', 'otherAmt'];
+const BIND = ['prod', 'ext', 'int', 'extra', 'del3', 'tint', 'bb', 'carLim', 'otherName', 'otherAmt', 'ctype', 'cname', 'mgr', 'tel'];
+const MONEY = ['extra', 'del3', 'otherAmt'];
 // 자차 한도 선택지 (추가 보험료는 서버에서만 계산 — 화면에는 이름만)
 // 포터 · 봉고 등 설정된 모델만 바꿀 수 있음 (승용은 기본 한도)
 const limAllowed = () => String(CFG.carLimitModels || '').split(',').map((x) => x.trim()).filter(Boolean).some((k) => (S?.v?.model || '').includes(k));
@@ -204,7 +204,7 @@ $('#pt').addEventListener('change', (e) => {
 
 // ── 서버 계산 ─────────────────────────────────────────
 let seq = 0, timer = 0;
-function payload() { return { ...S, extra: num(S.extra), del1: num(S.del1), del2: num(S.del2), del3: num(S.del3), otherAmt: num(S.otherAmt) }; }
+function payload() { return { ...S, extra: num(S.extra), del3: num(S.del3), otherAmt: num(S.otherAmt) }; }
 function recalc(now) {
   issued = null;
   saveDraft();

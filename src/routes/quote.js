@@ -19,6 +19,14 @@ const PW_MSG = '비밀번호는 8자 이상으로 정해 주세요.';
 const wonTxt = (n) => Number(n || 0).toLocaleString('ko-KR');
 const kstDate = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
+// 견적 사용자 입력: 제조사 탁송료는 회원에게 안 보이고 설정 기본값으로 고정, 탁송은 납품 탁송료(del3) 하나만 받음
+function memberInput(b, cfg) {
+  const input = cleanInput(b);
+  input.del1 = String(cfg.del1 ?? DEFAULT_QUOTE_CONFIG.del1);
+  input.del2 = '0';
+  return input;
+}
+
 // 관리자 '견적 설정' 저장값 검사
 function cleanConfig(b) {
   const d = DEFAULT_QUOTE_CONFIG;
@@ -174,14 +182,15 @@ export function registerQuote(r) {
 
   r.post('/api/quote/calc', async ({ env, request }) => {
     await requireQuoteUser(request, env.DB);
-    const input = cleanInput(await readJson(request));
-    return json(toPublic(computeQuote(input, await loadQuoteConfig(env.DB))));
+    const cfg = await loadQuoteConfig(env.DB);
+    return json(toPublic(computeQuote(memberInput(await readJson(request), cfg), cfg)));
   });
 
   r.post('/api/quote/issue', async ({ env, request }) => {
     const me = await requireQuoteUser(request, env.DB);
-    const input = cleanInput(await readJson(request));
-    const res = computeQuote(input, await loadQuoteConfig(env.DB));
+    const cfg = await loadQuoteConfig(env.DB);
+    const input = memberInput(await readJson(request), cfg);
+    const res = computeQuote(input, cfg);
     if (!res.ok) throw bad(res.error);
     const shown = res.products.filter((o) => o.on);
     if (!shown.length) throw bad('견적서에 표시할 상품을 하나 이상 선택해 주세요.');
