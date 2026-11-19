@@ -30,7 +30,8 @@ const OPEN_ADMIN = new Set(['/api/admin/me', '/api/admin/setup', '/api/admin/log
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    // www 없는 주소로 들어오면 www 로 영구 이동 (검색엔진이 같은 사이트를 둘로 보지 않게) — GET · HEAD 만
+    // www 없는 주소로 들어오면 www 로 영구 이동 — GET · HEAD 만. 단, 화면(HTML · 이미지 등 정적 파일)은 Worker 를 거치지 않으므로
+    // 여기서는 API 등만 이동됨. 화면까지 옮기려면 Cloudflare 대시보드 Redirect Rule 사용. 각 화면에는 canonical(www) 표시가 있음
     if (url.hostname === 'acerentcar.co.kr' && (request.method === 'GET' || request.method === 'HEAD')) {
       return Response.redirect('https://www.acerentcar.co.kr' + url.pathname + url.search, 301);
     }
