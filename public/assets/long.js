@@ -29,6 +29,7 @@ function draw() {
 <div style="display:flex;flex-direction:column;gap:4px">
 <span class="badge">${esc(ST(v))}</span>
 <strong class="name">${esc(v.name)}</strong>
+${v.plate ? `<span class="meta" style="color:var(--ink);font-weight:500">차량번호 ${esc(v.plate)}</span>` : ""}
 <span class="meta">${v.year ? v.year + '년식 | ' : ''}${won(v.km)}km | ${esc(v.fuel)}</span></div>
 <dl>${v.p && v.p.deposit !== undefined ? `<dt>보증금</dt><dd>${v.p.deposit ? won(Math.round(v.p.deposit / 10000)) + '만원' : '없음'}${v.p.km ? ` · 연 ${v.p.km / 10000}만km` : ''}</dd>` : `<dt>현재 차량가격</dt><dd>${v.car_value ? won(v.car_value) + '원' : '-'}</dd>`}
 <dt>월 렌트료${v.p ? ` (${v.p.term}개월)` : ''}</dt><dd>${v.p ? `<strong class="price">${won(v.p.monthly)}</strong>원~` : '<span class="muted">상담</span>'}</dd></dl></a>`).join('')

@@ -423,12 +423,14 @@ export function registerAdmin(r) {
       plate, name: erp?.name || plate, class: erp?.class || '', year: int(erp?.year) || 0, first_reg: erp?.first_reg || '', km: int(erp?.km) || 0,
       fuel: erp?.fuel || '', color: erp?.color || '', seats: int(erp?.seats) || 0, new_price: int(erp?.new_price) || 0, displacement: int(erp?.displacement) || 0,
       erp_ref: erp?.id ? String(erp.id) : '', status: 'available', visible: 0, badge: '즉시출고', price_mode: 'table', terms: JSON.stringify(COMMON_TERMS),
+      show_plate: 1, // 중고장기렌트 목록에 차량번호 표시 (기본 공개)
     };
     return json({ ok: true, id: await insertRow(env.DB, 'long_vehicles', row), existed: false, fromErp: !!erp });
   });
   r.post('/api/admin/long', async ({ env, request }) => {
     const row = pick(await readJson(request), LONG_FIELDS);
     if (!row.name) throw bad('차명을 입력해 주세요.');
+    if (row.show_plate === undefined) row.show_plate = 1; // 차량번호 기본 공개
     return json({ ok: true, id: await insertRow(env.DB, 'long_vehicles', row) });
   });
   // 견적형 미리 계산 (저장 전 입력값으로)
