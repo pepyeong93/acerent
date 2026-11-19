@@ -932,7 +932,7 @@ ${st.enabled ? '' : `<div class="box box-pad" style="border-left:4px solid var(-
 <div id="adsBody"><p class="loading">불러오는 중…</p></div>
 ${st.runs.length ? `<p class="hint" style="margin-top:12px">최근 실행: ${st.runs.slice(0, 3).map((r) => `${kst(r.created_at)} ${r.kind} ${r.ok ? '✓' : '✗'} ${esc(r.message)}`).join(' / ')}</p>` : ''}`;
   $$('[data-t]').forEach((b) => b.addEventListener('click', () => { sessionStorage.setItem('adsTab', b.dataset.t); route(); }));
-  $('#adsRun')?.addEventListener('click', async (e) => { e.target.disabled = true; try { const r = await run(() => api('/api/admin/ads/run', { method: 'POST', body: { what: 'hourly' } })); toast(`분석 완료 · 새 제안 ${r.proposals || 0}건`); route(); } finally { e.target.disabled = false; } });
+  $('#adsRun')?.addEventListener('click', async (e) => { e.target.disabled = true; try { const r = await run(() => api('/api/admin/ads/run', { method: 'POST', body: { what: 'hourly' } })); toast(r.syncing ? `키워드 불러오는 중 (광고그룹 ${r.progress}) — 다시 누르거나 10분 뒤 자동으로 이어서 불러옵니다` : `분석 완료 · 새 제안 ${r.proposals || 0}건`); route(); } finally { e.target.disabled = false; } });
   $('#adsDaily')?.addEventListener('click', async (e) => { e.target.disabled = true; try { const r = await run(() => api('/api/admin/ads/run', { method: 'POST', body: { what: 'daily' } })); toast(`리포트 완료 · 새 키워드 추천 ${r.newKeywords || 0}건`); route(); } finally { e.target.disabled = false; } });
   const body = $('#adsBody');
 

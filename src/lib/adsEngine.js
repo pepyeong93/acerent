@@ -42,40 +42,61 @@ async function logRun(db, kind, ok, message) {
 }
 
 // ── 1. 동기화: 캠페인 → 광고그룹 → 키워드 ──
-export async function syncAccount(env) {
+//   무료 요금제는 한 번 실행에 바깥 요청이 50개로 제한되어, 광고그룹을 한 번에 최대 GROUPS_PER_STEP 개씩 나눠 읽음
+//   진행 상태는 settings.ads_sync 에 저장 → 10분마다 도는 작업이 이어서 처리. 한 바퀴가 끝나면 1시간 뒤 다시 처음부터
+const GROUPS_PER_STEP = 25;
+async function loadSync(db) {
+  const row = await db.prepare(`SELECT value FROM settings WHERE key = 'ads_sync'`).first();
+  try { return JSON.parse((row && row.value) || 'null'); } catch { return null; }
+}
+async function saveSync(db, st) {
+  await db.prepare(`INSERT INTO settings (key, value) VALUES ('ads_sync', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).bind(JSON.stringify(st)).run();
+}
+export async function syncStep(env, force = false) {
   const db = env.DB;
-  const campaigns = (await listCampaigns(env)) || [];
-  const rows = [];
-  for (const c of campaigns) {
-    if (c.campaignTp && c.campaignTp !== 'WEB_SITE') continue; // 파워링크(사이트검색광고)만
-    const groups = (await listAdgroups(env, c.nccCampaignId)) || [];
-    for (const g of groups) {
-      const kws = (await listKeywords(env, g.nccAdgroupId)) || [];
-      for (const k of kws) {
-        rows.push({
-          keyword_id: k.nccKeywordId, keyword: k.keyword, adgroup_id: g.nccAdgroupId, adgroup_name: g.name || '',
-          campaign_id: c.nccCampaignId, campaign_name: c.name || '',
-          bid: k.useGroupBidAmt ? g.bidAmt || 0 : k.bidAmt || 0, use_group_bid: k.useGroupBidAmt ? 1 : 0,
-          paused: k.userLock || g.userLock || c.userLock ? 1 : 0, status: k.status || '',
-        });
-      }
+  let st = await loadSync(db);
+  const now = Date.now();
+  // 새 한 바퀴 시작: 처음이거나, 지난 바퀴가 끝난 지 50분 지났거나, 강제
+  if (!st || (st.done && (force || now - (st.doneAt || 0) > 50 * 60 * 1000))) {
+    const campaigns = ((await listCampaigns(env)) || []).filter((c) => !c.campaignTp || c.campaignTp === 'WEB_SITE');
+    let groups = [];
+    try {
+      groups = (await listAdgroups(env)) || []; // 계정 전체 광고그룹 한 번에
+    } catch {
+      for (const c of campaigns.slice(0, 20)) groups.push(...((await listAdgroups(env, c.nccCampaignId)) || []));
+    }
+    const camp = Object.fromEntries(campaigns.map((c) => [c.nccCampaignId, c]));
+    st = {
+      startedAt: now, done: false, idx: 0,
+      campaigns: campaigns.map((c) => ({ nccCampaignId: c.nccCampaignId, name: c.name, userLock: !!c.userLock, useDailyBudget: !!c.useDailyBudget, dailyBudget: c.dailyBudget || 0, campaignTp: c.campaignTp || '' })),
+      groups: groups.filter((g) => camp[g.nccCampaignId]).map((g) => ({ id: g.nccAdgroupId, name: g.name || '', bid: g.bidAmt || 0, lock: g.userLock || camp[g.nccCampaignId].userLock ? 1 : 0, cid: g.nccCampaignId, cname: camp[g.nccCampaignId].name || '' })),
+    };
+  }
+  if (st.done) return st;
+  const slice = st.groups.slice(st.idx, st.idx + GROUPS_PER_STEP);
+  const stmts = [];
+  for (const g of slice) {
+    const kws = (await listKeywords(env, g.id)) || [];
+    for (const k of kws) {
+      stmts.push(db.prepare(
+        `INSERT INTO ad_keywords (keyword_id, keyword, adgroup_id, adgroup_name, campaign_id, campaign_name, bid, use_group_bid, paused, status, synced_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(keyword_id) DO UPDATE SET keyword = excluded.keyword, adgroup_id = excluded.adgroup_id, adgroup_name = excluded.adgroup_name,
+           campaign_id = excluded.campaign_id, campaign_name = excluded.campaign_name, bid = excluded.bid, use_group_bid = excluded.use_group_bid,
+           paused = excluded.paused, status = excluded.status, synced_at = excluded.synced_at`
+      ).bind(k.nccKeywordId, k.keyword, g.id, g.name, g.cid, g.cname, k.useGroupBidAmt ? g.bid : k.bidAmt || 0, k.useGroupBidAmt ? 1 : 0, k.userLock || g.lock ? 1 : 0, k.status || ''));
     }
   }
-  const stmts = rows.map((x) =>
-    db.prepare(
-      `INSERT INTO ad_keywords (keyword_id, keyword, adgroup_id, adgroup_name, campaign_id, campaign_name, bid, use_group_bid, paused, status, synced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(keyword_id) DO UPDATE SET keyword = excluded.keyword, adgroup_id = excluded.adgroup_id, adgroup_name = excluded.adgroup_name,
-         campaign_id = excluded.campaign_id, campaign_name = excluded.campaign_name, bid = excluded.bid, use_group_bid = excluded.use_group_bid,
-         paused = excluded.paused, status = excluded.status, synced_at = excluded.synced_at`
-    ).bind(x.keyword_id, x.keyword, x.adgroup_id, x.adgroup_name, x.campaign_id, x.campaign_name, x.bid, x.use_group_bid, x.paused, x.status)
-  );
-  for (let i = 0; i < stmts.length; i += 50) await db.batch(stmts.slice(i, i + 50));
-  // 광고 계정에서 지워진 키워드는 목록에서도 삭제
-  const ids = rows.map((x) => x.keyword_id);
-  if (ids.length) await db.prepare(`DELETE FROM ad_keywords WHERE keyword_id NOT IN (${ids.map(() => '?').join(',')})`).bind(...ids).run();
-  else await db.prepare('DELETE FROM ad_keywords').run();
-  return { campaigns, keywords: rows.length };
+  for (let i = 0; i < stmts.length; i += 80) await db.batch(stmts.slice(i, i + 80));
+  st.idx += slice.length;
+  if (st.idx >= st.groups.length) {
+    st.done = true;
+    st.doneAt = Date.now();
+    // 이번 바퀴에서 다시 보이지 않은 키워드(광고 계정에서 삭제됨)는 목록에서 삭제
+    await db.prepare(`DELETE FROM ad_keywords WHERE synced_at < datetime(?, 'unixepoch')`).bind(Math.floor(st.startedAt / 1000) - 60).run();
+  }
+  await saveSync(db, st);
+  return st;
 }
 
 // ── 2. 성과 수집 (하루 단위) ──
@@ -106,19 +127,31 @@ async function recentStats(db, days) {
   return results;
 }
 
-async function hasPending(db, type, keywordId, keyword) {
-  return !!(await db.prepare(`SELECT 1 FROM ad_proposals WHERE status = 'pending' AND type = ? AND (keyword_id = ? AND keyword = ?) LIMIT 1`).bind(type, keywordId || '', keyword || '').first());
-}
-async function propose(db, p) {
-  if (await hasPending(db, p.type, p.keyword_id, p.keyword)) return false;
-  await db.prepare(
-    `INSERT INTO ad_proposals (type, keyword_id, keyword, adgroup_id, adgroup_name, campaign_id, from_value, to_value, reason, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(p.type, p.keyword_id || '', p.keyword || '', p.adgroup_id || '', p.adgroup_name || '', p.campaign_id || '', p.from_value || 0, p.to_value || 0, p.reason, JSON.stringify(p.data || {})).run();
-  return true;
+class Proposer {
+  constructor(db) { this.db = db; this.keys = null; this.queue = []; }
+  async load() {
+    if (this.keys) return;
+    const { results } = await this.db.prepare(`SELECT type, keyword_id, keyword FROM ad_proposals WHERE status = 'pending'`).all();
+    this.keys = new Set(results.map((r) => `${r.type}|${r.keyword_id}|${r.keyword}`));
+  }
+  async add(p) {
+    await this.load();
+    const key = `${p.type}|${p.keyword_id || ''}|${p.keyword || ''}`;
+    if (this.keys.has(key)) return false;
+    this.keys.add(key);
+    this.queue.push(this.db.prepare(
+      `INSERT INTO ad_proposals (type, keyword_id, keyword, adgroup_id, adgroup_name, campaign_id, from_value, to_value, reason, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(p.type, p.keyword_id || '', p.keyword || '', p.adgroup_id || '', p.adgroup_name || '', p.campaign_id || '', p.from_value || 0, p.to_value || 0, p.reason, JSON.stringify(p.data || {})));
+    return true;
+  }
+  async flush() {
+    for (let i = 0; i < this.queue.length; i += 80) await this.db.batch(this.queue.slice(i, i + 80));
+    this.queue = [];
+  }
 }
 
 // ── 3. 입찰가 분석 → 제안 ──
-export async function analyzeBids(env, cfg) {
+export async function analyzeBids(env, cfg, pr) {
   const db = env.DB;
   await db.prepare(`UPDATE ad_proposals SET status = 'expired' WHERE status = 'pending' AND type IN ('bid','pause') AND created_at < datetime('now', '-24 hours')`).run();
   const rows = (await recentStats(db, 7)).filter((k) => !k.paused);
@@ -129,7 +162,7 @@ export async function analyzeBids(env, cfg) {
       to = Math.max(cfg.minBid, Math.min(cfg.maxBid, r10(to)));
       if (to === k.bid) return;
     }
-    const ok = await propose(db, { type, keyword_id: k.keyword_id, keyword: k.keyword, adgroup_id: k.adgroup_id, adgroup_name: k.adgroup_name, campaign_id: k.campaign_id, from_value: k.bid, to_value: type === 'bid' ? to : 0, reason, data });
+    const ok = await pr.add({ type, keyword_id: k.keyword_id, keyword: k.keyword, adgroup_id: k.adgroup_id, adgroup_name: k.adgroup_name, campaign_id: k.campaign_id, from_value: k.bid, to_value: type === 'bid' ? to : 0, reason, data });
     if (ok) made.push({ type, keyword: k.keyword, from: k.bid, to, reason });
   };
   const noImpKeys = [];
@@ -144,7 +177,7 @@ export async function analyzeBids(env, cfg) {
     } else if (k.conv > 0 && k.rank > 0 && k.rank <= 1.5 && k.bid > cfg.minBid * 3) {
       await add(k, 'bid', k.bid * (1 - step / 2), `평균 ${d.rank7}위로 1위권 유지 중(전환 ${k.conv}건) → 순위는 지키면서 비용 절감을 위해 소폭 인하`, d);
     } else if (k.imp === 0) {
-      const age = (await db.prepare(`SELECT julianday('now') - julianday(first_seen) a FROM ad_keywords WHERE keyword_id = ?`).bind(k.keyword_id).first()).a;
+      const age = (Date.now() - Date.parse(String(k.first_seen).replace(' ', 'T') + 'Z')) / 86400000;
       if (age >= 2) noImpKeys.push({ k, d });
     }
   }
@@ -167,13 +200,13 @@ export async function analyzeBids(env, cfg) {
 }
 
 // 캠페인 하루 예산이 한도보다 크면 낮추자고 제안
-async function checkBudgets(env, cfg, campaigns) {
+async function checkBudgets(env, cfg, campaigns, pr) {
   const made = [];
   const live = campaigns.filter((c) => !c.userLock && (!c.campaignTp || c.campaignTp === 'WEB_SITE'));
   for (const c of live) {
     const b = c.useDailyBudget ? c.dailyBudget : 0;
     if (!c.useDailyBudget || b > cfg.dailyBudget) {
-      const ok = await propose(env.DB, {
+      const ok = await pr.add({
         type: 'budget', keyword_id: c.nccCampaignId, keyword: c.name, campaign_id: c.nccCampaignId, from_value: b, to_value: cfg.dailyBudget,
         reason: c.useDailyBudget ? `캠페인 하루 예산 ${won(b)}이 설정한 한도 ${won(cfg.dailyBudget)}보다 큼` : `캠페인 하루 예산이 '제한 없음' → 한도 ${won(cfg.dailyBudget)}로 제한`,
       });
@@ -184,7 +217,7 @@ async function checkBudgets(env, cfg, campaigns) {
 }
 
 // ── 4. 새 키워드 추천 ──
-export async function discoverKeywords(env, cfg) {
+export async function discoverKeywords(env, cfg, pr) {
   const db = env.DB;
   const { results: mine } = await db.prepare('SELECT keyword, adgroup_id, adgroup_name, campaign_id FROM ad_keywords').all();
   const { results: proposed } = await db.prepare(`SELECT keyword FROM ad_proposals WHERE type = 'add_keyword' AND status IN ('pending','rejected') AND created_at > datetime('now', '-30 days')`).all();
@@ -229,7 +262,7 @@ export async function discoverKeywords(env, cfg) {
     const g = pick(c.keyword);
     if (!g) continue;
     const bid = Math.max(cfg.minBid, Math.min(cfg.maxBid, r10(est[c.keyword] || Math.min(cfg.maxBid, 500))));
-    const ok = await propose(db, {
+    const ok = await pr.add({
       type: 'add_keyword', keyword: c.keyword, adgroup_id: g.adgroup_id, adgroup_name: g.adgroup_name, campaign_id: g.campaign_id || '', to_value: bid,
       reason: `월간 검색 ${c.total.toLocaleString('ko-KR')}회(모바일 ${c.mobile.toLocaleString('ko-KR')}) · 경쟁 ${c.comp || '-'} · 아직 등록되지 않은 키워드 → '${g.adgroup_name || g.adgroup_id}' 광고그룹에 모바일 5위 예상 입찰가 ${won(bid)}로 추가`,
       data: c,
@@ -258,7 +291,7 @@ export async function applyProposal(env, id, adminName) {
     } else if (p.type === 'add_keyword') {
       await addKeywords(env, p.adgroup_id, [{ keyword: p.keyword, bid: Math.min(p.to_value, cfg.maxBid) }]);
     } else if (p.type === 'budget') {
-      const camp = ((await listCampaigns(env)) || []).find((c) => c.nccCampaignId === p.campaign_id);
+      const camp = ((await listCampaigns(env)) || []).find((c) => c.nccCampaignId === p.campaign_id); // 캠페인 목록 1회
       if (!camp) throw new Error('캠페인을 찾을 수 없습니다.');
       await updateCampaignBudget(env, camp, p.to_value);
     } else throw new Error('알 수 없는 제안 종류입니다.');
@@ -278,16 +311,24 @@ function proposalMail(made) {
 }
 
 // ── 매시간 ──
-export async function runHourly(env) {
+//   동기화가 아직 한 바퀴 안 끝났으면 이어서 동기화만 (다음 실행에서 분석)
+export async function runHourly(env, { forceSync = false } = {}) {
   if (!adsEnabled(env)) return { skipped: true };
   const db = env.DB;
   try {
     const cfg = await loadConfig(db);
-    const { campaigns, keywords } = await syncAccount(env);
+    const st = await syncStep(env, forceSync);
+    if (!st.done) {
+      await logRun(db, 'hourly', true, `키워드 불러오는 중 (광고그룹 ${st.idx}/${st.groups.length})`);
+      return { ok: true, syncing: true, progress: `${st.idx}/${st.groups.length}` };
+    }
     await collectStats(env, kstDay());
     if (kstHour() < 3) await collectStats(env, kstDay(-1)); // 자정 직후엔 전날 마무리
-    const made = [...(await analyzeBids(env, cfg)), ...(await checkBudgets(env, cfg, campaigns))];
-    await logRun(db, 'hourly', true, `키워드 ${keywords}개 · 새 제안 ${made.length}건`);
+    const pr = new Proposer(db);
+    const made = [...(await analyzeBids(env, cfg, pr)), ...(await checkBudgets(env, cfg, st.campaigns, pr))];
+    await pr.flush();
+    const kw = await db.prepare('SELECT COUNT(*) n FROM ad_keywords').first();
+    await logRun(db, 'hourly', true, `키워드 ${kw.n}개 · 새 제안 ${made.length}건`);
     if (made.length) {
       await notifyAdmins(env, {
         kind: '광고 제안', refNo: '',
@@ -295,7 +336,7 @@ export async function runHourly(env) {
         html: buildMailHtml({ title: '네이버 광고 승인 대기 제안', linkUrl: 'https://www.acerentcar.co.kr/admin/#ads', linkText: '관리자 화면에서 승인하기', intro: '네이버 광고 변경 제안이 있습니다. 관리자 화면 > 네이버 광고에서 승인하면 바로 적용됩니다.', rows: proposalMail(made) }),
       }).catch(() => {});
     }
-    return { ok: true, keywords, proposals: made.length };
+    return { ok: true, keywords: kw.n, proposals: made.length };
   } catch (e) {
     await logRun(db, 'hourly', false, e.message || e);
     return { ok: false, error: String(e.message || e) };
@@ -309,7 +350,6 @@ export async function runDaily(env) {
   const day = kstDay(-1);
   try {
     const cfg = await loadConfig(db);
-    await syncAccount(env);
     await collectStats(env, day);
     const { results: rows } = await db.prepare(
       `SELECT k.keyword, k.adgroup_name, k.bid, s.imp, s.clk, s.cost, s.avg_rank, s.conv FROM ad_stats_daily s JOIN ad_keywords k ON k.keyword_id = s.keyword_id WHERE s.day = ? ORDER BY s.cost DESC`
@@ -318,7 +358,9 @@ export async function runDaily(env) {
     const prev = await db.prepare('SELECT COALESCE(SUM(imp),0) imp, COALESCE(SUM(clk),0) clk, COALESCE(SUM(cost),0) cost, COALESCE(SUM(conv),0) conv FROM ad_stats_daily WHERE day = ?').bind(kstDay(-2)).first();
     const best = rows.filter((r) => r.conv > 0).sort((a, b) => b.conv - a.conv || a.cost - b.cost).slice(0, 5);
     const waste = rows.filter((r) => r.conv === 0 && r.cost > 0).slice(0, 5);
-    const found = await discoverKeywords(env, cfg);
+    const pr = new Proposer(db);
+    const found = await discoverKeywords(env, cfg, pr);
+    await pr.flush();
     const summary = {
       day, total: tot, prev,
       ctr: tot.imp ? Math.round((tot.clk / tot.imp) * 10000) / 100 : 0,
@@ -353,12 +395,16 @@ export async function runDaily(env) {
   }
 }
 
-// 10분마다 도는 작업에서 호출: 매시 정각 무렵 1번 분석, 한국시간 오전 9시 무렵 1번 리포트
+// 10분마다 도는 작업에서 호출: 동기화 진행 중이면 이어서 · 매시 정각 무렵 분석 · 한국시간 오전 9시 무렵 리포트
 export async function adsScheduled(env, when = new Date()) {
   if (!adsEnabled(env)) return;
   const m = when.getUTCMinutes();
-  if (m >= 10) return;
   const h = (when.getUTCHours() + 9) % 24;
-  if (h === 9) await runDaily(env);
-  await runHourly(env);
+  if (m < 10) {
+    if (h === 9) await runDaily(env);
+    await runHourly(env);
+    return;
+  }
+  const st = await loadSync(env.DB);
+  if (st && !st.done) await runHourly(env);
 }
