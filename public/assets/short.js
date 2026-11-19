@@ -1,4 +1,4 @@
-import { api, $, $$, esc, won, shortDt, defaultPeriod, initLayout, setBusy, classImage, validBirth } from './common.js';
+import { api, $, $$, esc, won, shortDt, defaultPeriod, initLayout, setBusy, classImage, validBirth, trackConversion } from './common.js';
 
 const site = await initLayout();
 const qs = new URLSearchParams(location.search);
@@ -194,6 +194,7 @@ $('#submitRes').addEventListener('click', async () => {
     $('#dPeriod').textContent = `${r.location} · ${r.pickupAt.replace('T', ' ')} ~ ${r.returnAt.replace('T', ' ')} (${r.periodText || r.days + '일'})`;
     $('#dTotal').textContent = won(r.total) + '원';
     step(3);
+    trackConversion('reserve', r.total);
   } catch (e) {
     err.textContent = e.message;
     if (/마감/.test(e.message)) setTimeout(() => { step(1); search(); }, 1500);

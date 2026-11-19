@@ -30,6 +30,10 @@ const OPEN_ADMIN = new Set(['/api/admin/me', '/api/admin/setup', '/api/admin/log
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // www 없는 주소로 들어오면 www 로 영구 이동 (검색엔진이 같은 사이트를 둘로 보지 않게) — GET · HEAD 만
+    if (url.hostname === 'acerentcar.co.kr' && (request.method === 'GET' || request.method === 'HEAD')) {
+      return Response.redirect('https://www.acerentcar.co.kr' + url.pathname + url.search, 301);
+    }
     try {
       if (url.pathname === '/robots.txt') return robotsTxt(url);
       if (url.pathname === '/sitemap.xml') return await sitemapXml(env, url);

@@ -1,10 +1,10 @@
-import { api, $, esc, won, nl, defaultPeriod, initLayout, classImage } from './common.js';
+import { api, $, esc, won, nl, defaultPeriod, initLayout, classImage, isAdVisit } from './common.js';
 import { showCarPopup } from './popup.js';
 
 // 필요한 데이터를 한꺼번에 요청 (하나씩 기다리면 화면이 늦게 채워짐)
 const pre = (u) => { const p = api(u); p.catch(() => {}); return p; };
 const P_NOTICE = pre('/api/posts?board=notice'), P_EVENTS = pre('/api/events'), P_REVIEWS = pre('/api/reviews?size=3'), P_CFG = pre('/api/community/config');
-showCarPopup(); // 첫 화면 팝업: 보유 차량 소개 (회사 정보 기다리지 않고 바로)
+showCarPopup(isAdVisit()); // 첫 화면 팝업: 보유 차량 소개 (광고 방문은 숨김)
 const site = await initLayout();
 
 // 배너

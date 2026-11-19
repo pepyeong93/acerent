@@ -56,6 +56,59 @@ export async function site() {
 //   구글: gclid · gbraid · wbraid (자동 태그) / 네이버 검색광고: NaPm · n_media · n_query (추적 기능)
 //   그 외: utm_medium 이 cpc · ppc · paid · ad 등이면 utm_source 를 매체로
 //   같은 탭에서 같은 주소를 다시 열어도(새로고침) 한 번만 보냄
+// 광고로 들어온 방문인지 (주소의 광고 표시로 판단) — 팝업 숨김 등에 사용
+export function isAdVisit() {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('gclid') || q.get('gbraid') || q.get('wbraid') || q.get('NaPm') || q.get('n_media') || q.get('n_query') || q.get('n_keyword')) return true;
+    if (/^(cpc|ppc|paid|ad|ads|cpm|display|sa)$/.test((q.get('utm_medium') || '').toLowerCase())) return true;
+    return sessionStorage.getItem('ace_ad_visit') === '1';
+  } catch { return false; }
+}
+
+// 네이버 프리미엄 로그분석 (방문 · 전환) — 관리자 회사 정보의 '네이버 공통 인증키'가 있을 때만 동작
+let naverReady = null;
+function loadNaver(wa) {
+  if (!wa || naverReady) return naverReady;
+  window.wcs_add = window.wcs_add || {};
+  window.wcs_add.wa = wa;
+  naverReady = new Promise((resolve) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://wcs.naver.net/wcslog.js';
+    sc.async = true;
+    sc.onload = () => { try { if (window.wcs) { window.wcs.inflow && window.wcs.inflow(location.hostname.replace(/^www\./, '')); window.wcs_do(); } } catch {} resolve(true); };
+    sc.onerror = () => resolve(false);
+    document.head.appendChild(sc);
+  });
+  return naverReady;
+}
+// 전환 기록: kind = reserve(단기 예약 완료) · apply(장기 견적 신청) · call(전화 버튼) · talk(카톡 · 라인 · 위챗 버튼)
+//   네이버 전환 종류: 4 신청/예약, 5 기타
+export async function trackConversion(kind, value = 0) {
+  try {
+    if (!naverReady || !(await naverReady) || !window.wcs) return;
+    const type = kind === 'reserve' || kind === 'apply' ? '4' : '5';
+    const nasa = { cnv: window.wcs.cnv(type, String(value || 0)) };
+    window.wcs_do(nasa);
+  } catch {}
+}
+
+// 모바일 하단 고정 버튼: 전화 예약 · 카톡 상담 (화면 폭 860px 이하)
+function renderBottomBar(s) {
+  if (document.getElementById('mBar')) return;
+  const phone = (s && s.phone) || '1644-8891';
+  const kakao = (s && s.kakaoUrl) || '';
+  const bar = document.createElement('div');
+  bar.id = 'mBar';
+  bar.className = 'm-bar';
+  bar.innerHTML = `<a class="m-bar-call" href="tel:${String(phone).replace(/\D/g, '')}">전화 예약 ${esc(phone)}</a>` +
+    (kakao ? `<a class="m-bar-talk" href="${esc(kakao)}" target="_blank" rel="noopener">카톡 상담</a>` : `<button type="button" class="m-bar-talk" data-msg="kakao">카톡 상담</button>`);
+  document.body.appendChild(bar);
+  document.body.classList.add('has-m-bar');
+  const kb = bar.querySelector('button[data-msg]');
+  if (kb) kb.addEventListener('click', () => msgDialog('kakao', (s && s.messenger) || 'ace16448891'));
+}
+
 function trackAdClick() {
   try {
     const q = new URLSearchParams(location.search);
@@ -69,6 +122,7 @@ function trackAdClick() {
     else if (paid) source = (q.get('utm_source') || 'other').toLowerCase();
     if (!source) return;
     const clickId = g || q.get('NaPm') || '';
+    try { sessionStorage.setItem('ace_ad_visit', '1'); } catch {}
     const key = 'adtrk:' + (clickId || location.search);
     try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch {}
     fetch('/api/track/ad', {
@@ -141,8 +195,20 @@ function renderMsgLinks(s) {
   $$('[data-msg]', box).forEach((b) => b.addEventListener('click', () => msgDialog(b.dataset.msg, id)));
 }
 
+let convBound = false;
+function bindConversionClicks() {
+  if (convBound) return;
+  convBound = true;
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="tel:"], .msg-btn, .m-bar-talk');
+    if (!a) return;
+    trackConversion(a.matches('a[href^="tel:"]') ? 'call' : 'talk');
+  }, true);
+}
+
 export async function initLayout() {
   trackAdClick();
+  bindConversionClicks();
   renderMsgLinks(null);
   const btn = $('.menu-btn');
   if (btn) btn.addEventListener('click', () => {
@@ -157,6 +223,9 @@ export async function initLayout() {
     $$('[data-site="messenger"]').forEach((el) => (el.textContent = s.messenger));
     $('.msg-links')?.remove();
     renderMsgLinks(s);
+    $('#mBar')?.remove();
+    renderBottomBar(s);
+    loadNaver(s.naverWa);
     $$('[data-site="address"]').forEach((el) => (el.textContent = s.address));
     $$('[data-site="biz"]').forEach((el) => (el.textContent = s.bizNo || '393-81-01841'));
     $$('[data-site="ceo"]').forEach((el) => (el.textContent = s.ceo || '백은영'));

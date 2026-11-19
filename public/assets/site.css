@@ -56,6 +56,14 @@ h1, h2, h3 { margin: 0; line-height: 1.35; }
 .msg-dlg-box p { margin: 0; font-size: 14px; line-height: 1.7; color: #444; }
 .msg-dlg-qr { width: 200px; max-width: 70vw; height: auto; margin: 0 auto; display: block; border: 1px solid var(--line); }
 .msg-dlg-id { font-size: 22px; font-weight: 700; color: var(--red); border: 1px solid var(--line); padding: 10px; }
+.m-bar { display: none; }
+@media (max-width: 860px) {
+  .m-bar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; height: 56px; box-shadow: 0 -2px 8px rgba(0,0,0,.12); }
+  .m-bar a, .m-bar button { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; border: 0; cursor: pointer; }
+  .m-bar-call { background: #C8102E; color: #fff; flex: 1.4 !important; }
+  .m-bar-talk { background: #FEE500; color: #3C1E1E; }
+  body.has-m-bar { padding-bottom: 56px; }
+}
 .msg-dlg-btns { display: flex; gap: 8px; } .msg-dlg-btns .btn { flex: 1; height: 44px; }
 @media (max-width: 860px) {
   .header .wrap { min-height: 64px; }

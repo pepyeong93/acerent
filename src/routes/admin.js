@@ -534,7 +534,7 @@ export function registerAdmin(r) {
   });
 
   // ── 설정 · 메일 ──────────────────────────────────────
-  const SETTING_KEYS = ['notify_email_1', 'notify_email_2', 'notify_kinds', 'site_phone', 'site_messenger', 'site_kakao_url', 'site_line_url', 'site_wechat_url', 'company_address', 'company_biz_no', 'company_ceo', 'short_min_age_note', 'review_notice', 'review_banned_words', 'review_approve_all'];
+  const SETTING_KEYS = ['notify_email_1', 'notify_email_2', 'notify_kinds', 'site_phone', 'site_messenger', 'site_kakao_url', 'site_line_url', 'site_wechat_url', 'site_naver_wa', 'company_address', 'company_biz_no', 'company_ceo', 'short_min_age_note', 'review_notice', 'review_banned_words', 'review_approve_all'];
   r.get('/api/admin/settings', async ({ env }) => {
     const s = await getSettings(env.DB);
     return json({ settings: s, mailFrom: env.MAIL_FROM, erpEnabled: !!(env.ERP_API_BASE || '').trim() });

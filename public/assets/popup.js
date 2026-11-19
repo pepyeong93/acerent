@@ -50,7 +50,8 @@ const CSS = `
   .pp-points strong { font-size: 15px; }
 }`;
 
-export function showCarPopup() {
+export function showCarPopup(skip = false) {
+  if (skip) return; // 광고로 들어온 방문은 팝업 없이 바로 본문 (이탈 방지)
   try { if (localStorage.getItem(KEY) === today()) return; } catch {}
   if (document.getElementById('ppWrap')) return;
   const style = document.createElement('style');

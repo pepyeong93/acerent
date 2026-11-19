@@ -1,4 +1,4 @@
-import { api, $, initLayout, setBusy } from './common.js';
+import { api, $, initLayout, setBusy, trackConversion } from './common.js';
 
 initLayout();
 
@@ -40,6 +40,7 @@ f.addEventListener('submit', async (e) => {
     f.reset(); syncType();
     msg.style.color = 'var(--ink)';
     msg.textContent = `견적 요청이 접수되었습니다 (신청번호 ${r.no}). 담당자가 곧 연락드립니다.`;
+    trackConversion('apply');
   } catch (err) {
     msg.style.color = '';
     msg.textContent = err.message;

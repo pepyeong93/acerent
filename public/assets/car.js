@@ -1,4 +1,4 @@
-import { api, $, $$, esc, won, initLayout, setBusy, classImage } from './common.js';
+import { api, $, $$, esc, won, initLayout, setBusy, classImage, trackConversion } from './common.js';
 import { quote, rateAmount, describe } from './longcalc.js';
 import { OPTION_GROUPS, termRows } from './longopts.js';
 
@@ -393,6 +393,7 @@ $('#applyBtn').addEventListener('click', async () => {
         wishDate: f.wishDate.value, request: f.request.value, website: f.website.value, agree: true, marketing: f.marketing.checked,
       },
     });
+    trackConversion('apply'); // 네이버 광고 전환: 중고장기렌트 신청
     root.innerHTML = `<div style="max-width:760px;margin:0 auto;width:100%;padding:24px 0">
 <div class="done-box"><h2>렌트 신청이 접수되었습니다.</h2>
 <p style="margin:0;font-size:15px;line-height:1.8;color:#444">신청번호 <strong class="red">${esc(r.no)}</strong><br>담당자가 심사 후 1영업일 안에 연락드립니다.</p></div>
