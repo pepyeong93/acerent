@@ -214,6 +214,8 @@ export function computeQuote(input, baseCfg) {
   const ins = Math.max(0, num(cfg.insurance)) + limAdd;
   const maint = Math.max(0, num(cfg.maint));
   const rvRow = cfg.rv[tr[9]] || cfg.rvDefault || [];
+  // 납입방식: 일반상품(N) = 후불, 저신용자상품 등 = 선불(출고 시 1회차 렌트료 + 보증금 납입)
+  const type = cfg.prod.code === 'N' ? 0 : 1;
 
   const products = input.P.map((p) => {
     const o = { on: p.on, n: p.term, km: p.km };
@@ -235,14 +237,15 @@ export function computeQuote(input, baseCfg) {
     o.rv = want > 0 && want <= o.rvMax ? want : o.rvMax;
     o.rvAmt = R((price / 1.1) * o.rv);
     o.rvAmtVat = R(price * o.rv);
-    o.fin = R(PMT(rate / 12, o.n, -o.invest + o.pre11 + o.dep, o.rvAmt - o.dep, 0));
+    o.type = type;
+    o.fin = R(PMT(rate / 12, o.n, -o.invest + o.pre11 + o.dep, o.rvAmt - o.dep, type));
     o.tax = mTax; o.ins = ins; o.maint = maint;
     o.supply = o.fin + o.tax + o.ins + o.maint;
     o.vat = R(o.supply * 0.1);
     o.month = o.supply + o.vat;
-    o.upfront = o.pre + o.dep;
+    o.upfront = o.pre + o.dep + (type ? o.month : 0); // 선불이면 1회차 렌트료 포함
     o.total = o.month * o.n + o.pre;
-    o.irr = RATE(o.n, o.fin, -o.invest + o.pre11 + o.dep, o.rvAmt - o.dep, 0) * 12;
+    o.irr = RATE(o.n, o.fin, -o.invest + o.pre11 + o.dep, o.rvAmt - o.dep, type) * 12;
     return o;
   });
 
@@ -276,7 +279,7 @@ export function toPublic(r) {
     products: r.products.map((o) =>
       o.error
         ? { on: o.on, n: o.n, km: o.km, error: o.error }
-        : { on: o.on, n: o.n, km: o.km, pre: o.pre, dep: o.dep, agUser: o.agUser, rv: o.rv, rvMax: o.rvMax, rvCapped: o.rvCapped, rvAmtVat: o.rvAmtVat, supply: o.supply, vat: o.vat, month: o.month, upfront: o.upfront, total: o.total }
+        : { on: o.on, n: o.n, km: o.km, pre: o.pre, dep: o.dep, agUser: o.agUser, rv: o.rv, rvMax: o.rvMax, rvCapped: o.rvCapped, rvAmtVat: o.rvAmtVat, type: o.type, supply: o.supply, vat: o.vat, month: o.month, upfront: o.upfront, total: o.total }
     ),
   };
 }

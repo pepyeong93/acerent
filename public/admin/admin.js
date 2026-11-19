@@ -1372,7 +1372,7 @@ async function quoteLogDetail(id) {
 ${row('약정거리', (o) => won(o.km) + 'km')}${row('선납금', (o) => won(o.pre))}${row('보증금', (o) => won(o.dep))}
 ${row('잔가율 (적용 / 최대)', (o) => `${pc(o.rv)} / ${pc(o.rvMax)}`)}${row('잔가금액 (공급가)', (o) => won(o.rvAmt))}
 ${row('총 취득원가', () => won(it.acqCost))}${row('AG 수수료 · 관리자', (o) => won(o.agAdmin ?? o.ag))}${row('AG 수수료 · 사용자 입력', (o) => (o.agUser !== undefined ? won(o.agUser) : '-'))}${row('AG 수수료 합계', (o) => won(o.ag))}${row('총 투입원가', (o) => won(o.invest))}
-${row('월 렌트료 (금융분)', (o) => won(o.fin))}${row('자동차세 (월)', (o) => won(o.tax))}${row('보험료 (월)', (o) => won(o.ins))}${row('정비 (월)', (o) => won(o.maint))}
+${row('납입방식', (o) => (o.type ? '선불 (1회차 출고 시)' : '후불'))}${row('월 렌트료 (금융분)', (o) => won(o.fin))}${row('자동차세 (월)', (o) => won(o.tax))}${row('보험료 (월)', (o) => won(o.ins))}${row('정비 (월)', (o) => won(o.maint))}
 ${row('월 렌트료 (공급가)', (o) => won(o.supply))}${row('부가세', (o) => won(o.vat))}${row('월 납입금', (o) => `<strong>${won(o.month)}</strong>`)}
 ${row('출고 전 납입', (o) => won(o.upfront))}${row('총 납입 (월 × 기간 + 선납)', (o) => won(o.total))}${row('실질금리 (AG 지급 후)', (o) => pc(o.irr))}
 </tbody></table></div></div>`;

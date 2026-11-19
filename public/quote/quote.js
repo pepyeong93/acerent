@@ -16,13 +16,16 @@ const pct = (x) => (Math.round(x * 1000) / 10).toFixed(1) + '%';
 
 function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.classList.toggle('err', !!err); t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 3000); }
 
+// 납입방식: 일반상품 = 후불, 저신용자상품 = 선불 (서버 계산 결과 type 1 = 선불)
+const payTxt = (pre) => (pre ? '선불 (출고시 1회차 렌트료 및 보증금납입)' : '후불');
+
 function blankState() {
   const P = (term, dep) => ({ on: true, term, km: 30000, pre: '0', dep, rv: '', ag: '0' });
   return {
     date: today(), v: { mk: '', cat: '', model: '', line: '', trim: '' }, opts: [],
     ext: '', int: '', extra: '0', del1: String(CFG.del1 ?? 330000), del2: '0', del3: '0',
     tint: '고객자체시공', bb: '고객자체시공', otherName: '', otherAmt: '0', carLim: '',
-    prod: 'N', ctype: '법인', cname: '', mgr: ME?.name || '', tel: ME?.phone || '',
+    prod: 'L', prodV: 1, ctype: '법인', cname: '', mgr: ME?.name || '', tel: ME?.phone || '',
     P: [P(36, '10%'), P(48, '10%'), P(60, '10%')],
   };
 }
@@ -74,7 +77,9 @@ async function boot() {
   S.P.forEach((p) => { if (p.ag === undefined) p.ag = '0'; });
   if (S.carLim === undefined) S.carLim = '';
   const prods = Array.isArray(CFG.products) && CFG.products.length ? CFG.products : [{ code: 'N', name: '일반상품' }];
-  $('#prod').innerHTML = prods.map((p) => `<option value="${esc(p.code)}">${esc(p.code)} · ${esc(p.name)}</option>`).join('');
+  $('#prod').innerHTML = [...prods].sort((a, b) => (a.code === 'N') - (b.code === 'N')).map((p) => `<option value="${esc(p.code)}">${esc(p.code)} · ${esc(p.name)}</option>`).join('');
+  // 상품구분 기본값은 저신용자상품(L). 예전 저장본(prodV 없음)도 한 번은 저신용자상품으로 맞춤
+  if (!S.prodV) { S.prod = 'L'; S.prodV = 1; }
   if (!prods.some((p) => p.code === S.prod)) S.prod = prods[0].code;
   syncInputs(); renderVehicle(); buildProducts(); recalc(true);
 }
@@ -183,7 +188,7 @@ ${row('선납금 (% 또는 원)', (i) => inp(i, 'pre', '0'))}
 ${row('보증금 (% 또는 원)', (i) => inp(i, 'dep', '10%'))}
 ${row('잔가율 (%)', (i) => inp(i, 'rv', '최대'))}
 ${row('AG수수료 (% 또는 원)', (i) => inp(i, 'ag', '0'))}
-${res('월 렌트료 (공급가)', 'sup')}${res('부가세', 'vat')}${res('월 납입금', 'mon', 'main')}${res('출고 전 납입', 'up')}
+${res('납입방식', 'pay')}${res('월 렌트료 (공급가)', 'sup')}${res('부가세', 'vat')}${res('월 납입금', 'mon', 'main')}${res('출고 전 납입', 'up')}
 </tbody>`;
 }
 $('#pt').addEventListener('input', (e) => {
@@ -244,6 +249,7 @@ function renderResults() {
     const o = ps?.[i];
     const set = (k, v) => { const el = $('#r' + i + k); if (el) { el.textContent = v; el.classList.remove('err'); } };
     ['pre', 'dep', 'rv', 'ag'].forEach((k) => { const s = $('#s' + i + k); if (s) { s.textContent = ''; s.classList.remove('warn'); } });
+    set('pay', payTxt(S.prod !== 'N'));
     if (!o) { ['sup', 'vat', 'mon', 'up'].forEach((k) => set(k, '-')); return; }
     if (o.error) {
       ['sup', 'vat', 'up'].forEach((k) => set(k, ''));
@@ -298,6 +304,7 @@ function renderPaper() {
 <tr><th>선납금</th>${cell((o) => won(o.pre) + '원')}</tr>
 <tr><th>보증금</th>${cell((o) => won(o.dep) + '원')}</tr>
 <tr><th>잔존가치</th>${cell((o) => `<div class="split"><span>${pct(o.rv)}</span><span>${won(o.rvAmtVat)}원</span></div>`)}</tr>
+<tr><th>납입방식</th>${cell((o) => payTxt(o.type), 'c')}</tr>
 <tr><th>렌트료 공급가</th>${cell((o) => won(o.supply) + '원')}</tr>
 <tr><th>부가세</th>${cell((o) => won(o.vat) + '원')}</tr>
 <tr class="total"><th>월 렌트료</th>${cell((o) => won(o.month) + '원')}</tr></table>
