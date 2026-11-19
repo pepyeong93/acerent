@@ -920,7 +920,7 @@ PAGES.ads = async () => {
   const st = await api('/api/admin/ads/status');
   const W = (n) => Number(n || 0).toLocaleString('ko-KR') + '원';
   const N = (n) => Number(n || 0).toLocaleString('ko-KR');
-  const TYPE = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산', delete_campaign: '캠페인 삭제', setup: '새 캠페인 만들기' };
+  const TYPE = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산', delete_campaign: '캠페인 삭제', setup: '새 캠페인 만들기', setup_fix: '빠진 광고 문구 채우기' };
   const STS = { pending: ['승인 대기', 'st-wait'], applied: ['적용 완료', 'st-ok'], rejected: ['거절', 'st-off'], failed: ['적용 실패', 'st-wait'], expired: ['기간 지남', 'st-off'] };
   const c = st.config;
   const TABS = [['pending', `승인 대기 ${st.pending ? '(' + st.pending + ')' : ''}`], ['done', '처리 기록'], ['keywords', '키워드 현황'], ['reports', '일별 리포트'], ['config', '설정']];
@@ -938,12 +938,12 @@ ${st.runs.length ? `<p class="hint" style="margin-top:12px">최근 실행: ${st.
 
   if (tab === 'pending' || tab === 'done') {
     const { items } = await api('/api/admin/ads/proposals?status=' + tab);
-    const val = (x) => x.type === 'bid' || x.type === 'budget' ? `<strong>${W(x.from_value)} → <span class="red">${W(x.to_value)}</span></strong>` : x.type === 'add_keyword' ? `입찰가 <strong class="red">${W(x.to_value)}</strong>` : x.type === 'delete_campaign' ? '<strong class="red">영구 삭제</strong>' : x.type === 'setup' ? '<strong class="red">생성 (꺼진 상태)</strong>' : '<strong class="red">중지</strong>';
+    const val = (x) => x.type === 'bid' || x.type === 'budget' ? `<strong>${W(x.from_value)} → <span class="red">${W(x.to_value)}</span></strong>` : x.type === 'add_keyword' ? `입찰가 <strong class="red">${W(x.to_value)}</strong>` : x.type === 'delete_campaign' ? '<strong class="red">영구 삭제</strong>' : x.type === 'setup' ? '<strong class="red">생성 (꺼진 상태)</strong>' : x.type === 'setup_fix' ? '<strong class="red">광고 · 제외 키워드 추가</strong>' : '<strong class="red">중지</strong>';
     body.innerHTML = `${tab === 'pending' && items.length > 1 ? '<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-sm btn-red" id="apAll">전체 승인</button></div>' : ''}
 <div class="box scroll-x"><table class="a-table" style="min-width:900px"><thead><tr><th>제안</th><th>키워드 · 광고그룹</th><th>변경</th><th style="width:40%">이유</th><th>${tab === 'pending' ? '' : '결과'}</th></tr></thead><tbody>
 ${items.length ? items.map((x) => `<tr data-id="${x.id}"><td><strong>${TYPE[x.type] || esc(x.type)}</strong><br><span class="hint">${kst(x.created_at)}</span></td>
 <td><strong>${esc(x.keyword)}</strong><br><span class="hint">${esc(x.adgroup_name || '')}</span></td><td>${val(x)}</td><td style="font-size:13px;line-height:1.6">${esc(x.reason)}</td>
-<td style="white-space:nowrap">${tab === 'pending' ? '<button class="btn btn-xs btn-red" data-ok>승인 · 적용</button> <button class="btn btn-xs" data-no>거절</button>' : `<span class="st ${(STS[x.status] || [])[1] || ''}">${(STS[x.status] || [x.status])[0]}</span>${x.result && (x.status === 'failed' || x.type === 'setup') ? `<br><span class="hint">${esc(x.result)}</span>` : ''}${x.decided_at ? `<br><span class="hint">${kst(x.decided_at)} ${esc(x.decided_by || '')}</span>` : ''}`}</td></tr>`).join('') : `<tr><td colspan="5" class="muted" style="padding:40px;text-align:center">${tab === 'pending' ? '승인 대기 중인 제안이 없습니다.' : '처리한 제안이 없습니다.'}</td></tr>`}
+<td style="white-space:nowrap">${tab === 'pending' ? '<button class="btn btn-xs btn-red" data-ok>승인 · 적용</button> <button class="btn btn-xs" data-no>거절</button>' : `<span class="st ${(STS[x.status] || [])[1] || ''}">${(STS[x.status] || [x.status])[0]}</span>${x.result && (x.status === 'failed' || x.type === 'setup' || x.type === 'setup_fix') ? `<br><span class="hint">${esc(x.result)}</span>` : ''}${x.decided_at ? `<br><span class="hint">${kst(x.decided_at)} ${esc(x.decided_by || '')}</span>` : ''}`}</td></tr>`).join('') : `<tr><td colspan="5" class="muted" style="padding:40px;text-align:center">${tab === 'pending' ? '승인 대기 중인 제안이 없습니다.' : '처리한 제안이 없습니다.'}</td></tr>`}
 </tbody></table></div>`;
     const act = async (tr, ok) => {
       $$('button', tr).forEach((b) => (b.disabled = true));

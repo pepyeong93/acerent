@@ -6,7 +6,7 @@ import {
   updateKeywordBid, pauseKeyword, addKeywords, updateCampaignBudget,
 } from './naverAds.js';
 import { notifyAdmins, buildMailHtml } from './mail.js';
-import { createSetup, deleteCampaign } from './adsSetup.js';
+import { createSetup, deleteCampaign, ensureSetupAds } from './adsSetup.js';
 
 export const DEFAULT_CONFIG = {
   dailyBudget: 50000,        // 하루 최대 광고비 (원) — 캠페인 하루 예산 합이 넘으면 낮추자고 제안
@@ -300,8 +300,8 @@ export async function applyProposal(env, id, adminName) {
       await deleteCampaign(env, p.campaign_id);
       await db.prepare('DELETE FROM ad_keywords WHERE campaign_id = ?').bind(p.campaign_id).run();
       await db.prepare(`DELETE FROM settings WHERE key = 'ads_sync'`).run(); // 다음 실행에서 처음부터 다시 동기화
-    } else if (p.type === 'setup') {
-      const msg = await createSetup(env);
+    } else if (p.type === 'setup' || p.type === 'setup_fix') {
+      const msg = p.type === 'setup' ? await createSetup(env) : await ensureSetupAds(env);
       await db.prepare(`DELETE FROM settings WHERE key = 'ads_sync'`).run();
       await db.prepare(`UPDATE ad_proposals SET status = 'applied', result = ?, decided_at = datetime('now'), decided_by = ? WHERE id = ?`).bind(msg.slice(0, 300), adminName || '', id).run();
       await logRun(db, 'apply', true, `#${id} setup ${msg}`);
@@ -321,7 +321,7 @@ export async function applyProposal(env, id, adminName) {
   }
 }
 
-const TYPE_NAME = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산', delete_campaign: '캠페인 삭제', setup: '새 캠페인 만들기' };
+const TYPE_NAME = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산', delete_campaign: '캠페인 삭제', setup: '새 캠페인 만들기', setup_fix: '빠진 광고 문구 채우기' };
 function proposalMail(made) {
   return made.map((m) => [TYPE_NAME[m.type] || m.type, `${m.keyword}${m.type === 'bid' ? ` : ${won(m.from)} → ${won(m.to)}` : m.type === 'add_keyword' ? ` (입찰가 ${won(m.to)})` : m.type === 'budget' ? ` : ${won(m.from)} → ${won(m.to)}` : ''}`]);
 }
