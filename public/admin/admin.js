@@ -139,6 +139,7 @@ async function refreshCounts() {
     if ($('#cntReview')) $('#cntReview').textContent = d.reviewTodo || '';
     if ($('#cntQuote')) $('#cntQuote').textContent = d.pendingQuoteUsers || '';
     if ($('#cntQReview')) $('#cntQReview').textContent = d.quoteReview || '';
+    if ($('#cntAds')) $('#cntAds').textContent = d.adsPending || '';
     return d;
   } catch {
     return null;
@@ -913,10 +914,88 @@ PAGES.banners = async () => {
 };
 
 // ── 메일 알림 · 발송 기록 ───────────────────────────
+// ── 네이버 광고 자동 관리 ───────────────────────────
+PAGES.ads = async () => {
+  const tab = sessionStorage.getItem('adsTab') || 'pending';
+  const st = await api('/api/admin/ads/status');
+  const W = (n) => Number(n || 0).toLocaleString('ko-KR') + '원';
+  const N = (n) => Number(n || 0).toLocaleString('ko-KR');
+  const TYPE = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산' };
+  const STS = { pending: ['승인 대기', 'st-wait'], applied: ['적용 완료', 'st-ok'], rejected: ['거절', 'st-off'], failed: ['적용 실패', 'st-wait'], expired: ['기간 지남', 'st-off'] };
+  const c = st.config;
+  const TABS = [['pending', `승인 대기 ${st.pending ? '(' + st.pending + ')' : ''}`], ['done', '처리 기록'], ['keywords', '키워드 현황'], ['reports', '일별 리포트'], ['config', '설정']];
+  main.innerHTML = `<div class="a-title"><div><h1>네이버 광고 (제안 · 리포트)</h1><p class="desc">매시간 네이버 검색광고의 키워드 · 입찰가 · 성과를 분석해 변경을 <strong>제안</strong>합니다. <strong>승인</strong>을 누르면 그 자리에서 네이버 광고에 바로 적용되고, 승인하지 않은 변경은 절대 적용하지 않습니다. 매일 오전 9시 무렵 전날 성과 리포트와 새 키워드 추천을 만들고, 알림 메일(종류 '광고 제안' · '광고 리포트')로도 보냅니다.</p></div>
+<div style="display:flex;gap:6px">${st.enabled ? '<button class="btn btn-sm" id="adsRun">지금 분석</button><button class="btn btn-sm" id="adsDaily">리포트 · 추천 만들기</button>' : ''}</div></div>
+${st.enabled ? '' : `<div class="box box-pad" style="border-left:4px solid var(--red);margin-bottom:12px"><strong>네이버 광고 API 키가 아직 연결되지 않았습니다.</strong><p class="hint" style="margin:6px 0 0;line-height:1.8">Cloudflare 비밀값 NAVER_AD_API_KEY(엑세스라이선스) · NAVER_AD_SECRET(비밀키) · NAVER_AD_CUSTOMER_ID(고객 ID)를 저장하면 바로 동작합니다. 키는 홈페이지 코드 · DB 에 저장되지 않습니다.</p></div>`}
+<div class="stats"><div><span>오늘 광고비</span><strong class="${st.today.cost > c.dailyBudget * 0.8 ? 'red' : ''}">${W(st.today.cost)}</strong></div><div><span>하루 한도</span><strong>${W(c.dailyBudget)}</strong></div><div><span>오늘 클릭 · 전환</span><strong>${N(st.today.clk)} · ${N(st.today.conv)}</strong></div><div><span>운영 중 키워드</span><strong>${N(st.keywords.live || 0)} / ${N(st.keywords.n || 0)}</strong></div><div><span>승인 대기</span><strong class="red">${st.pending}</strong></div></div>
+<div class="tabs-line" role="tablist">${TABS.map(([k, v]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-t="${k}">${v}</button>`).join('')}</div>
+<div id="adsBody"><p class="loading">불러오는 중…</p></div>
+${st.runs.length ? `<p class="hint" style="margin-top:12px">최근 실행: ${st.runs.slice(0, 3).map((r) => `${kst(r.created_at)} ${r.kind} ${r.ok ? '✓' : '✗'} ${esc(r.message)}`).join(' / ')}</p>` : ''}`;
+  $$('[data-t]').forEach((b) => b.addEventListener('click', () => { sessionStorage.setItem('adsTab', b.dataset.t); route(); }));
+  $('#adsRun')?.addEventListener('click', async (e) => { e.target.disabled = true; try { const r = await run(() => api('/api/admin/ads/run', { method: 'POST', body: { what: 'hourly' } })); toast(`분석 완료 · 새 제안 ${r.proposals || 0}건`); route(); } finally { e.target.disabled = false; } });
+  $('#adsDaily')?.addEventListener('click', async (e) => { e.target.disabled = true; try { const r = await run(() => api('/api/admin/ads/run', { method: 'POST', body: { what: 'daily' } })); toast(`리포트 완료 · 새 키워드 추천 ${r.newKeywords || 0}건`); route(); } finally { e.target.disabled = false; } });
+  const body = $('#adsBody');
+
+  if (tab === 'pending' || tab === 'done') {
+    const { items } = await api('/api/admin/ads/proposals?status=' + tab);
+    const val = (x) => x.type === 'bid' || x.type === 'budget' ? `<strong>${W(x.from_value)} → <span class="red">${W(x.to_value)}</span></strong>` : x.type === 'add_keyword' ? `입찰가 <strong class="red">${W(x.to_value)}</strong>` : '<strong class="red">중지</strong>';
+    body.innerHTML = `${tab === 'pending' && items.length > 1 ? '<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-sm btn-red" id="apAll">전체 승인</button></div>' : ''}
+<div class="box scroll-x"><table class="a-table" style="min-width:900px"><thead><tr><th>제안</th><th>키워드 · 광고그룹</th><th>변경</th><th style="width:40%">이유</th><th>${tab === 'pending' ? '' : '결과'}</th></tr></thead><tbody>
+${items.length ? items.map((x) => `<tr data-id="${x.id}"><td><strong>${TYPE[x.type] || esc(x.type)}</strong><br><span class="hint">${kst(x.created_at)}</span></td>
+<td><strong>${esc(x.keyword)}</strong><br><span class="hint">${esc(x.adgroup_name || '')}</span></td><td>${val(x)}</td><td style="font-size:13px;line-height:1.6">${esc(x.reason)}</td>
+<td style="white-space:nowrap">${tab === 'pending' ? '<button class="btn btn-xs btn-red" data-ok>승인 · 적용</button> <button class="btn btn-xs" data-no>거절</button>' : `<span class="st ${(STS[x.status] || [])[1] || ''}">${(STS[x.status] || [x.status])[0]}</span>${x.result && x.status === 'failed' ? `<br><span class="hint">${esc(x.result)}</span>` : ''}${x.decided_at ? `<br><span class="hint">${kst(x.decided_at)} ${esc(x.decided_by || '')}</span>` : ''}`}</td></tr>`).join('') : `<tr><td colspan="5" class="muted" style="padding:40px;text-align:center">${tab === 'pending' ? '승인 대기 중인 제안이 없습니다.' : '처리한 제안이 없습니다.'}</td></tr>`}
+</tbody></table></div>`;
+    const act = async (tr, ok) => {
+      $$('button', tr).forEach((b) => (b.disabled = true));
+      try { await run(() => api(`/api/admin/ads/proposals/${tr.dataset.id}/${ok ? 'approve' : 'reject'}`, { method: 'POST' }), ok ? '네이버 광고에 적용했습니다.' : '거절했습니다.'); } catch {}
+    };
+    $$('tr[data-id]').forEach((tr) => {
+      $('[data-ok]', tr)?.addEventListener('click', async () => { await act(tr, true); route(); refreshCounts(); });
+      $('[data-no]', tr)?.addEventListener('click', async () => { await act(tr, false); route(); refreshCounts(); });
+    });
+    $('#apAll')?.addEventListener('click', async () => {
+      if (!(await confirmBox(`승인 대기 제안 ${items.length}건을 모두 네이버 광고에 적용할까요?`, '전체 승인'))) return;
+      for (const tr of $$('tr[data-id]')) await act(tr, true);
+      route(); refreshCounts();
+    });
+  } else if (tab === 'keywords') {
+    const { items } = await api('/api/admin/ads/keywords');
+    body.innerHTML = `<div class="box scroll-x"><table class="a-table" style="min-width:900px"><thead><tr><th>키워드</th><th>광고그룹</th><th class="num">입찰가</th><th class="num">노출</th><th class="num">클릭</th><th class="num">비용</th><th class="num">전환</th><th class="num">평균 순위</th></tr></thead><tbody>
+${items.length ? items.map((k) => `<tr${k.paused ? ' style="opacity:.5"' : ''}><td><strong>${esc(k.keyword)}</strong>${k.paused ? ' <span class="st st-off">중지</span>' : ''}</td><td><span class="hint">${esc(k.campaign_name)} › ${esc(k.adgroup_name)}</span></td><td class="num">${W(k.bid)}</td><td class="num">${N(k.imp)}</td><td class="num">${N(k.clk)}</td><td class="num">${W(k.cost)}</td><td class="num">${k.conv ? '<strong class="red">' + N(k.conv) + '</strong>' : 0}</td><td class="num">${k.rank || '-'}</td></tr>`).join('') : '<tr><td colspan="8" class="muted" style="padding:40px;text-align:center">아직 불러온 키워드가 없습니다. API 키 연결 후 \'지금 분석\'을 눌러 주세요.</td></tr>'}
+</tbody></table></div><p class="hint">최근 7일 합계 · 비용은 VAT 제외</p>`;
+  } else if (tab === 'reports') {
+    const { items } = await api('/api/admin/ads/reports');
+    body.innerHTML = items.length ? items.map((r) => { const s = r.summary, t = s.total || {}; return `<div class="box box-pad" style="margin-bottom:12px">
+<h2 style="font-size:16px;margin:0 0 8px">${esc(r.day)} 리포트</h2>
+<div class="stats" style="margin:0 0 10px"><div><span>노출</span><strong>${N(t.imp)}</strong></div><div><span>클릭 (클릭률)</span><strong>${N(t.clk)} (${s.ctr}%)</strong></div><div><span>비용 (한도 대비)</span><strong>${W(t.cost)} (${s.budgetUse}%)</strong></div><div><span>전환 (전환당 비용)</span><strong>${N(t.conv)}${t.conv ? ' (' + W(s.cpa) + ')' : ''}</strong></div><div><span>클릭당 비용</span><strong>${W(s.cpc)}</strong></div></div>
+<p style="margin:4px 0;font-size:14px"><strong>성과 좋은 키워드</strong> · ${(s.best || []).map((k) => `${esc(k.keyword)}(전환 ${k.conv}, ${W(k.cost)})`).join(', ') || '-'}</p>
+<p style="margin:4px 0;font-size:14px"><strong>비용만 쓴 키워드</strong> · ${(s.waste || []).map((k) => `${esc(k.keyword)}(${W(k.cost)})`).join(', ') || '-'}</p>
+<p style="margin:4px 0;font-size:14px"><strong>새 키워드 추천</strong> · ${(s.newKeywords || []).map((k) => `${esc(k.keyword)}(${W(k.to)})`).join(', ') || '-'} ${(s.newKeywords || []).length ? '<span class="hint">— 승인 대기 탭에서 추가할 수 있습니다</span>' : ''}</p></div>`; }).join('') : '<p class="muted" style="padding:30px;text-align:center">아직 리포트가 없습니다. 매일 오전 9시 무렵 자동으로 만들어집니다.</p>';
+  } else {
+    const f = (k, label, hint) => `<label class="field">${label}<input class="input" id="ac_${k}" value="${esc(c[k])}" inputmode="numeric">${hint ? `<span class="hint">${hint}</span>` : ''}</label>`;
+    const t = (k, label, hint) => `<label class="field" style="grid-column:1/-1">${label}<textarea class="textarea" id="ac_${k}" rows="2">${esc((c[k] || []).join(', '))}</textarea>${hint ? `<span class="hint">${hint}</span>` : ''}</label>`;
+    body.innerHTML = `<div class="box box-pad"><div class="grid2">
+${f('dailyBudget', '하루 최대 광고비 (원)', '캠페인 하루 예산이 이보다 크면 낮추자고 제안합니다')}${f('maxBid', '최고 입찰가 (원)', '어떤 경우에도 이보다 높게 제안 · 적용하지 않습니다')}
+${f('minBid', '최저 입찰가 (원)', '네이버 최저 70원')}${f('targetRank', '목표 평균 순위', '전환이 나오는 키워드를 이 순위 안으로 올리자고 제안')}
+${f('maxChangePct', '한 번에 바꾸는 폭 (%)', '5~50')}${f('wasteCost', '낭비 판단: 최근 7일 비용 (원)', '이 금액 이상 쓰고')}
+${f('wasteClicks', '낭비 판단: 최근 7일 클릭', '이 클릭 이상인데 전환 0이면 인하 · 중지 제안')}${f('discoveryMinVolume', '새 키워드: 월간 검색수 최소', '')}
+${f('discoveryLimit', '새 키워드: 하루 추천 개수', '')}<label class="field">새 키워드를 넣을 광고그룹 ID (선택)<input class="input" id="ac_defaultAdgroupId" value="${esc(c.defaultAdgroupId || '')}" placeholder="비우면 가장 비슷한 광고그룹"></label>
+${t('seeds', '추천용 기준 키워드 (쉼표 구분)', '이 키워드들의 연관 검색어에서 새 키워드를 찾습니다')}
+${t('mustContain', '추천 키워드에 꼭 들어갈 단어', '하나라도 들어간 키워드만 추천')}
+${t('negatives', '추천에서 뺄 단어', '들어가면 추천하지 않음 (예: 무료, 알바, 제주)')}
+</div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-red btn-sm" id="acSave">설정 저장</button></div></div>`;
+    $('#acSave').addEventListener('click', () => {
+      const b = {};
+      for (const k of ['dailyBudget', 'maxBid', 'minBid', 'targetRank', 'maxChangePct', 'wasteCost', 'wasteClicks', 'discoveryMinVolume', 'discoveryLimit', 'defaultAdgroupId', 'seeds', 'mustContain', 'negatives']) b[k] = $('#ac_' + k).value;
+      run(() => api('/api/admin/ads/config', { method: 'PUT', body: b }), '설정을 저장했습니다.').then(() => route());
+    });
+  }
+};
+
 PAGES.notify = async () => {
   const [{ settings: s, mailFrom }, { logs }] = await Promise.all([api('/api/admin/settings'), api('/api/admin/mail-log')]);
   const kinds = JSON.parse(s.notify_kinds || '[]');
-  const ALL = ['단기 예약', '중장기 신청', '법인 견적', '1:1 문의', '이용후기', '견적 회원가입', '심사 요청'];
+  const ALL = ['단기 예약', '중장기 신청', '법인 견적', '1:1 문의', '이용후기', '견적 회원가입', '심사 요청', '광고 제안', '광고 리포트'];
   main.innerHTML = `<div class="a-title"><div><h1>메일 알림 · 발송 기록</h1><p class="desc">예약 · 신청 · 문의가 들어오면 아래 두 주소로 동시에 메일이 가고, 모든 발송이 아래 기록에 남습니다.</p></div></div>
 <div class="split"><div class="l box box-pad" style="display:flex;flex-direction:column;gap:14px">
 <h2 style="font-size:16px">수신 이메일</h2>

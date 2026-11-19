@@ -13,6 +13,8 @@ import { registerQuote } from './routes/quote.js';
 import { registerQuoteReview } from './routes/quoteReview.js';
 import { registerCommunity } from './routes/community.js';
 import { registerAdClicks, purgeAdClicks } from './routes/adclicks.js';
+import { registerAds } from './routes/ads.js';
+import { adsScheduled } from './lib/adsEngine.js';
 import { serveImage } from './routes/upload.js';
 import { legacyRedirect, robotsTxt, sitemapXml } from './lib/legacy.js';
 
@@ -23,6 +25,7 @@ registerQuote(router);
 registerQuoteReview(router);
 registerCommunity(router);
 registerAdClicks(router);
+registerAds(router);
 
 // /api/admin/file 은 폼 POST(페이지 이동)라 JSON 오류 대신 204 로 답하도록 안에서 직접 로그인 확인
 const OPEN_ADMIN = new Set(['/api/admin/me', '/api/admin/setup', '/api/admin/login', '/api/admin/logout', '/api/admin/file']);
@@ -83,5 +86,7 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(retryFailed(env));
     ctx.waitUntil(purgeAdClicks(env).catch(() => {}));
+    // 네이버 광고: 매시 정각 무렵 분석 · 제안, 한국시간 오전 9시 무렵 일별 리포트 · 새 키워드 추천 (API 키가 있을 때만)
+    ctx.waitUntil(adsScheduled(env, new Date(event.scheduledTime || Date.now())).catch(() => {}));
   },
 };
