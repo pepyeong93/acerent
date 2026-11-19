@@ -1,4 +1,4 @@
-// 메인 첫 화면 팝업: 보유 차량 소개 (24~25년식 신형급 기아 차량)
+// 메인 첫 화면 팝업: 보유 차량 소개 (24~26년식 신형급 기아 차량)
 //   '오늘 하루 보지 않기' 를 누르면 그날(한국시간)은 다시 안 뜸 — 브라우저에만 기록
 //   차종 · 문구를 바꾸려면 아래 CARS · 문구를 고치면 됨
 
@@ -62,12 +62,12 @@ export function showCarPopup() {
   w.innerHTML = `<div class="pp" role="dialog" aria-modal="true" aria-labelledby="ppTitle">
 <div class="pp-head">
 <span class="pp-tag">에이스렌터카 보유 차량</span>
-<h2 id="ppTitle">전 차량 <em>24~25년식</em><br>신형급 기아 차량으로 모십니다</h2>
+<h2 id="ppTitle">전 차량 <em>24~26년식</em><br>신형급 기아 차량으로 모십니다</h2>
 <p>주행거리가 짧은 최신 연식 차량을 깨끗하게 관리해서 출고합니다.</p>
 <button type="button" class="pp-x" aria-label="닫기" data-pp-close>×</button>
 </div>
 <div class="pp-points">
-<div><strong>24~25년식</strong><span>최신 연식</span></div>
+<div><strong>24~26년식</strong><span>최신 연식</span></div>
 <div><strong>짧은 주행거리</strong><span>컨디션 좋은 차량</span></div>
 <div><strong>깨끗한 차량</strong><span>세차 후 출고</span></div>
 </div>
