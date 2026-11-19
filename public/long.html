@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>장기렌트 즉시출고 차량 · 견적 | 에이스렌터카</title>
-<meta name="description" content="즉시 출고 가능한 장기렌트 차량의 월 렌트료와 보증금을 확인하고 바로 신청하세요. 법인 · 개인사업자 견적 신청. 대표전화 1644-8891">
+<title>중고장기렌트 즉시출고 차량 | 에이스렌터카</title>
+<meta name="description" content="에이스렌터카 보유 차량을 바로 출고하는 중고장기렌트. 차량별 월 렌트료와 보증금을 확인하고 바로 신청하세요. 대표전화 1644-8891">
 <meta property="og:type" content="website">
-<meta property="og:title" content="법인 · 개인사업자 장기렌트 견적 | 에이스렌터카">
-<meta property="og:description" content="법인 · 개인사업자 장기렌트 견적 신청. 원하는 차종과 조건을 남기면 담당자가 직접 견적을 드립니다.">
+<meta property="og:title" content="중고장기렌트 즉시출고 차량 | 에이스렌터카">
+<meta property="og:description" content="에이스렌터카 보유 차량을 바로 출고하는 중고장기렌트. 차량별 월 렌트료를 확인하고 바로 신청하세요.">
 <meta property="og:image" content="/assets/og.png">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,8 +28,8 @@
 <a href="/short.html">단기렌트</a>
 <a href="/short.html?days=7">주단위렌트</a>
 <a href="/short.html?days=30">월렌트</a>
-<a href="/long.html" class="on" aria-current="page">장기렌트</a>
-<a href="/long.html#corp">법인렌트</a>
+<a href="/newcar.html">신차장기렌트</a>
+<a href="/long.html" class="on" aria-current="page">중고장기렌트</a>
 <a href="/event.html">이벤트</a>
 <a href="/support.html">고객센터</a>
 </nav>
@@ -41,9 +41,9 @@
 .corp-band .wrap { padding: 28px 20px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; justify-content: space-between; }
 </style>
 <div class="wrap page-head">
-<p class="crumb">홈 &gt; 장기렌트</p>
-<h1>장기렌트</h1>
-<p>즉시 출고 가능한 에이스렌터카 보유 차량입니다. 원하는 차가 없으면 아래 견적 신청을 남겨주세요. 종합보험, 자동차세가 월 렌트료에 포함됩니다.</p>
+<p class="crumb">홈 &gt; 중고장기렌트</p>
+<h1>중고장기렌트</h1>
+<p>즉시 출고 가능한 에이스렌터카 보유 차량입니다. 원하는 차가 없으면 <a href="/newcar.html" class="red" style="text-decoration:underline">신차장기렌트 견적</a>을 신청해 주세요. 종합보험, 자동차세가 월 렌트료에 포함됩니다.</p>
 </div>
 
 <section class="wrap" style="padding-top:28px" id="cars">
@@ -55,26 +55,12 @@
 <p class="small muted" style="margin:28px 0 0;border-top:1px solid var(--line);padding-top:14px">※ 월 렌트료는 VAT 포함입니다. 차량을 누르면 계약 기간별 금액과 보증금 · 선납금 조정, 옵션 · 계약/보험 조건을 확인하고 바로 신청할 수 있습니다.</p>
 </section>
 
-<section class="corp-band" id="corp"><div class="wrap">
+<section class="corp-band"><div class="wrap" style="align-items:center">
 <div style="flex:1 1 320px;min-width:0">
-<h2 style="font-size:20px">견적 신청</h2>
-<p style="margin:6px 0 0;font-size:14px;color:#444;line-height:1.7">법인 · 개인사업자 모두 신청할 수 있습니다.<br>2대 이상 계약, 원하는 차종, 운행기록부 발급이 필요하면 요청 사항에 적어주세요.<br>전화 상담: <a href="tel:16448891" data-site="tel"><strong data-site="phone">1644-8891</strong></a></p>
+<h2 style="font-size:20px">원하는 차량이 없나요?</h2>
+<p style="margin:6px 0 0;font-size:14px;color:#444;line-height:1.7">원하는 차종 · 옵션으로 새 차를 출고하는 신차장기렌트 견적을 받아보세요. 개인 · 개인사업자 · 법인 모두 신청할 수 있습니다.</p>
 </div>
-<form id="corpForm" style="flex:1 1 480px;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px" novalidate>
-<label class="field">구분<select class="select" name="bizType"><option>법인</option><option>개인사업자</option></select></label>
-<label class="field">법인명 · 상호<input class="input" name="company" required></label>
-<label class="field">사업자등록번호<input class="input" name="bizNo" placeholder="000-00-00000"></label>
-<label class="field">담당자 이름<input class="input" name="name" required></label>
-<label class="field">휴대폰 번호<input class="input" name="phone" type="tel" inputmode="numeric" required maxlength="13"></label>
-<label class="field">원하는 차종<input class="input" name="vehicleWish" placeholder="예: 쏘렌토, 카니발"></label>
-<label class="field">필요 대수<select class="select" name="qty"><option>1대</option><option>2~4대</option><option>5대 이상</option></select></label>
-<label class="field" style="grid-column:1/-1">요청 사항<textarea class="textarea" name="request" rows="3" placeholder="계약 기간, 보증금, 연간 주행거리 등"></textarea></label>
-<input type="text" name="website" tabindex="-1" autocomplete="off" class="sr" aria-hidden="true">
-<label class="check" style="grid-column:1/-1"><input type="checkbox" name="agree">[필수] 개인정보 수집·이용에 동의합니다</label>
-<label class="check" style="grid-column:1/-1"><input type="checkbox" name="marketing"><span>[선택] 할인 · 이벤트 · 신차 소식을 문자로 받겠습니다 (<a href="/privacy.html#marketing" target="_blank" rel="noopener" class="muted" style="text-decoration:underline">마케팅 정보 수신 동의</a>)</span></label>
-<p class="error-msg" id="corpMsg" role="alert" style="grid-column:1/-1;margin:0"></p>
-<button class="btn btn-black btn-lg" type="submit" style="grid-column:1/-1">장기렌트 견적 신청</button>
-</form>
+<a class="btn btn-black btn-lg" href="/newcar.html">신차장기렌트 견적 신청</a>
 </div></section>
 </main>
 <footer class="footer"><div class="wrap">
