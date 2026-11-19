@@ -95,6 +95,8 @@ const MSG_ICONS = {
   wechat: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="#fff" d="M9.2 4.5C5.2 4.5 2 7.2 2 10.5c0 1.9 1 3.6 2.7 4.7l-.7 2.1 2.5-1.3c.9.3 1.8.4 2.7.4h.6c-.2-.6-.3-1.2-.3-1.8 0-3.3 3.1-5.9 6.9-5.9h.6c-.6-2.4-3.4-4.2-6.8-4.2zM6.8 9.3c-.5 0-.9-.4-.9-.9s.4-.9.9-.9.9.4.9.9-.4.9-.9.9zm4.8 0c-.5 0-.9-.4-.9-.9s.4-.9.9-.9.9.4.9.9-.4.9-.9.9zM22 14.6c0-2.8-2.7-5-6.1-5s-6.1 2.2-6.1 5 2.7 5 6.1 5c.7 0 1.4-.1 2.1-.3l2 1.1-.6-1.8c1.6-1 2.6-2.4 2.6-4zm-8.1-.7c-.4 0-.7-.3-.7-.7s.3-.7.7-.7.7.3.7.7-.3.7-.7.7zm4 0c-.4 0-.7-.3-.7-.7s.3-.7.7-.7.7.3.7.7-.3.7-.7.7z"/></svg>',
 };
 const MSG_NAMES = { kakao: '카카오톡', line: '라인', wechat: '위챗' };
+// 위챗 '내 QR 코드' 이미지 (바꾸려면 이 파일을 교체)
+const WECHAT_QR = '/assets/wechat-qr.png';
 function msgDialog(type, id) {
   document.getElementById('msgDlg')?.remove();
   const d = document.createElement('div');
@@ -102,7 +104,12 @@ function msgDialog(type, id) {
   d.className = 'msg-dlg';
   d.innerHTML = `<div class="msg-dlg-box" role="dialog" aria-modal="true" aria-labelledby="msgDlgT">
 <strong id="msgDlgT">${MSG_NAMES[type]} 상담</strong>
-<p>${MSG_NAMES[type]} 앱에서 아래 아이디를 친구 추가해 주세요.<br><span class="small muted">${type === 'kakao' ? '카카오톡 → 친구 추가 → ID로 추가' : '위챗 → 친구 추가 → 위챗 ID 검색'}</span></p>
+${type === 'wechat'
+  ? `<p>위챗에서 QR 코드를 스캔해 친구로 추가해 주세요.<br><span class="small muted">휴대폰: QR 이미지를 저장한 뒤 위챗 → 스캔 → 앨범에서 선택</span></p>
+<img class="msg-dlg-qr" src="${WECHAT_QR}" alt="에이스렌터카 위챗 QR 코드">
+<a class="btn" href="${WECHAT_QR}" download="에이스렌터카-위챗-QR.png" style="height:40px">QR 이미지 저장</a>
+<p class="small muted" style="margin:0">또는 위챗 ID 검색</p>`
+  : `<p>${MSG_NAMES[type]} 앱에서 아래 아이디를 친구 추가해 주세요.<br><span class="small muted">카카오톡 → 친구 추가 → ID로 추가</span></p>`}
 <div class="msg-dlg-id">${esc(id)}</div>
 <div class="msg-dlg-btns"><button type="button" class="btn btn-red" data-copy>아이디 복사</button><button type="button" class="btn" data-close>닫기</button></div>
 </div>`;

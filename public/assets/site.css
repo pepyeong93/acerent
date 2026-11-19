@@ -51,9 +51,10 @@ h1, h2, h3 { margin: 0; line-height: 1.35; }
 .msg-wechat { background: #07C160; }
 .msg-btn:hover { filter: brightness(.95); }
 .msg-dlg { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.msg-dlg-box { background: #fff; width: 100%; max-width: 340px; padding: 24px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.msg-dlg-box { background: #fff; width: 100%; max-width: 340px; max-height: 92vh; overflow: auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
 .msg-dlg-box strong { font-size: 18px; }
 .msg-dlg-box p { margin: 0; font-size: 14px; line-height: 1.7; color: #444; }
+.msg-dlg-qr { width: 200px; max-width: 70vw; height: auto; margin: 0 auto; display: block; border: 1px solid var(--line); }
 .msg-dlg-id { font-size: 22px; font-weight: 700; color: var(--red); border: 1px solid var(--line); padding: 10px; }
 .msg-dlg-btns { display: flex; gap: 8px; } .msg-dlg-btns .btn { flex: 1; height: 44px; }
 @media (max-width: 860px) {
