@@ -138,6 +138,7 @@ async function refreshCounts() {
     $('#cntMail').textContent = d.mailFailed || '';
     if ($('#cntReview')) $('#cntReview').textContent = d.reviewTodo || '';
     if ($('#cntQuote')) $('#cntQuote').textContent = d.pendingQuoteUsers || '';
+    if ($('#cntQReview')) $('#cntQReview').textContent = d.quoteReview || '';
     return d;
   } catch {
     return null;
@@ -915,7 +916,7 @@ PAGES.banners = async () => {
 PAGES.notify = async () => {
   const [{ settings: s, mailFrom }, { logs }] = await Promise.all([api('/api/admin/settings'), api('/api/admin/mail-log')]);
   const kinds = JSON.parse(s.notify_kinds || '[]');
-  const ALL = ['단기 예약', '중장기 신청', '법인 견적', '1:1 문의', '이용후기', '견적 회원가입'];
+  const ALL = ['단기 예약', '중장기 신청', '법인 견적', '1:1 문의', '이용후기', '견적 회원가입', '심사 요청'];
   main.innerHTML = `<div class="a-title"><div><h1>메일 알림 · 발송 기록</h1><p class="desc">예약 · 신청 · 문의가 들어오면 아래 두 주소로 동시에 메일이 가고, 모든 발송이 아래 기록에 남습니다.</p></div></div>
 <div class="split"><div class="l box box-pad" style="display:flex;flex-direction:column;gap:14px">
 <h2 style="font-size:16px">수신 이메일</h2>
@@ -1327,20 +1328,23 @@ ${c.products.map((p, i) => { const rv = p.code === 'N' ? c.rv : p.rv, rd = p.cod
   $('#qcSave2').addEventListener('click', save);
 };
 
-// ── 견적 발행 기록: 누가 어느 견적을 냈는지 ──
+// ── 견적 · 심사: 누가 어느 견적을 냈는지, 서류를 올려 심사 요청한 건 승인 · 부결 ──
+const QR_ST = { quote: ['견적진행', 'st-off'], review: ['심사진행', 'st-wait'], approved: ['승인', 'st-ok'], rejected: ['부결', 'st-off'] };
 PAGES.quotelogs = async (arg) => {
   if (arg) return quoteLogDetail(+arg);
   const q = new URLSearchParams(location.hash.split('?')[1] || '');
-  const user = q.get('user') || '', kw = q.get('q') || '', page = +q.get('page') || 1;
-  const d = await api(`/api/admin/quote-logs?user=${encodeURIComponent(user)}&q=${encodeURIComponent(kw)}&page=${page}`);
+  const user = q.get('user') || '', kw = q.get('q') || '', page = +q.get('page') || 1, st = q.get('st') || '';
+  const d = await api(`/api/admin/quote-logs?user=${encodeURIComponent(user)}&q=${encodeURIComponent(kw)}&st=${encodeURIComponent(st)}&page=${page}`);
   const pages = Math.max(1, Math.ceil(d.total / d.size));
-  const go = (o) => { const p = new URLSearchParams({ user, q: kw, page: 1, ...o }); location.hash = '#quotelogs?' + p.toString(); };
-  main.innerHTML = `<div class="a-title"><div><h1>견적 발행 기록</h1><p class="desc">견적 사용자가 '견적서 발행'을 누를 때마다 기록됩니다. 줄을 누르면 적용된 금리 · 보험료와 계산 내역을 볼 수 있습니다.</p></div></div>
-<div class="box"><div class="toolbar"><select class="select" id="lgUser" aria-label="사용자">${opts([['', '전체 사용자'], ...d.users.map((u) => [u.user_id, `${u.user_name || '(삭제된 계정)'}${u.user_company ? ' · ' + u.user_company : ''} (${u.n})`])], user)}</select>
+  const go = (o) => { const p = new URLSearchParams({ user, q: kw, st, page: 1, ...o }); location.hash = '#quotelogs?' + p.toString(); };
+  main.innerHTML = `<div class="a-title"><div><h1>견적 · 심사</h1><p class="desc">견적 사용자가 견적서를 발행할 때마다 기록됩니다. 사용자가 서류를 올리고 심사를 요청하면 '심사진행'이 되고, 줄을 눌러 서류를 확인한 뒤 승인 · 부결합니다.</p></div></div>
+<div class="box"><div class="toolbar"><select class="select" id="lgSt" aria-label="상태">${opts([['', '전체 상태'], ['review', '심사진행 (처리 대기)'], ['approved', '승인'], ['rejected', '부결'], ['quote', '견적진행']], st)}</select>
+<select class="select" id="lgUser" aria-label="사용자">${opts([['', '전체 사용자'], ...d.users.map((u) => [u.user_id, `${u.user_name || '(삭제된 계정)'}${u.user_company ? ' · ' + u.user_company : ''} (${u.n})`])], user)}</select>
 <input class="input" id="lgQ" value="${esc(kw)}" placeholder="견적번호 · 고객 · 차량 검색" style="min-width:220px"><button class="btn btn-sm" id="lgGo">검색</button><span class="hint">${d.total}건</span></div>
-<div style="overflow-x:auto"><table class="a-table"><thead><tr><th>견적번호 · 발행일시</th><th>사용자</th><th>고객</th><th>차량</th><th class="num">차량가격</th><th>월 렌트료 (VAT포함)</th></tr></thead>
-<tbody>${d.logs.length ? d.logs.map((x) => `<tr class="click" data-id="${x.id}"><td><strong>${esc(x.no)}</strong><br><span class="hint">${kst(x.created_at)}</span></td><td>${esc(x.user_name)}<br><span class="hint">${esc(x.user_company || x.username)}</span></td><td>${esc(x.customer_name || '-')}<br><span class="hint">${esc(x.customer_type)}</span></td><td>${esc(x.vehicle)}</td><td class="num">${won(x.price)}</td><td>${esc(x.summary)}</td></tr>`).join('') : '<tr><td colspan="6" class="muted" style="padding:40px;text-align:center">아직 발행된 견적이 없습니다.</td></tr>'}</tbody></table></div>
+<div style="overflow-x:auto"><table class="a-table"><thead><tr><th>견적번호 · 발행일시</th><th>상태</th><th>사용자</th><th>고객</th><th>차량</th><th class="num">차량가격</th><th>월 렌트료 (VAT포함)</th><th class="num">서류</th></tr></thead>
+<tbody>${d.logs.length ? d.logs.map((x) => `<tr class="click" data-id="${x.id}"><td><strong>${esc(x.no)}</strong><br><span class="hint">${kst(x.created_at)}</span></td><td>${badge(QR_ST, x.review_status || 'quote')}${x.review_status === 'review' && x.review_requested_at ? `<br><span class="hint">${kst(x.review_requested_at)} 요청</span>` : ''}</td><td>${esc(x.user_name)}<br><span class="hint">${esc(x.user_company || x.username)}</span></td><td>${esc(x.customer_name || '-')}<br><span class="hint">${esc(x.customer_type)}</span></td><td>${esc(x.vehicle)}</td><td class="num">${won(x.price)}</td><td>${esc(x.summary)}</td><td class="num">${x.docs || '-'}</td></tr>`).join('') : '<tr><td colspan="8" class="muted" style="padding:40px;text-align:center">조건에 맞는 견적이 없습니다.</td></tr>'}</tbody></table></div>
 ${pages > 1 ? `<div class="toolbar" style="border-top:1px solid var(--line);border-bottom:0;justify-content:center">${page > 1 ? `<button class="btn btn-xs" data-pg="${page - 1}">이전</button>` : ''}<span class="hint">${page} / ${pages}</span>${page < pages ? `<button class="btn btn-xs" data-pg="${page + 1}">다음</button>` : ''}</div>` : ''}</div>`;
+  $('#lgSt').addEventListener('change', () => go({ st: $('#lgSt').value }));
   $('#lgUser').addEventListener('change', () => go({ user: $('#lgUser').value }));
   $('#lgGo').addEventListener('click', () => go({ q: $('#lgQ').value.trim() }));
   $('#lgQ').addEventListener('keydown', (e) => e.key === 'Enter' && go({ q: $('#lgQ').value.trim() }));
@@ -1349,12 +1353,27 @@ ${pages > 1 ? `<div class="toolbar" style="border-top:1px solid var(--line);bord
 };
 
 async function quoteLogDetail(id) {
-  const { log: x } = await api('/api/admin/quote-logs/' + id);
+  const { log: x, docs = [], docTypes = [] } = await api('/api/admin/quote-logs/' + id);
   const r = x.result || {}, inp = x.input || {}, v = r.vehicle || {}, it = r.internal || {};
   const ps = (r.products || []).filter((o) => o.on);
   const pc = (n) => (Number.isFinite(n) ? (Math.round(n * 10000) / 100).toFixed(2) + '%' : '-');
   const row = (label, f, cls = '') => `<tr${cls ? ` class="${cls}"` : ''}><td>${label}</td>${ps.map((o) => `<td class="num">${o.error ? (label === '월 납입금' ? `<span class="red">${esc(o.error)}</span>` : '') : f(o)}</td>`).join('')}</tr>`;
+  const st = x.review_status || 'quote';
+  const kb = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB');
+  // 심사: 상태 · 서류 · 승인/부결
+  const review = `<div class="box box-pad" style="display:flex;flex-direction:column;gap:12px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="font-size:16px;margin:0">심사</h2>${badge(QR_ST, st)}
+<span class="hint">견적진행 → 심사진행 → 승인 / 부결${x.review_requested_at ? ` · 요청 ${kst(x.review_requested_at)}` : ''}${x.review_decided_at ? ` · 처리 ${kst(x.review_decided_at)}${x.review_decided_by ? ' ' + esc(x.review_decided_by) : ''}` : ''}</span></div>
+${x.review_note ? `<p style="margin:0">사유 · 안내: ${esc(x.review_note)}</p>` : ''}
+<div style="overflow-x:auto"><table class="a-table"><thead><tr><th style="width:150px">서류</th><th>파일</th></tr></thead><tbody>
+${docTypes.map(([k, name]) => { const fs = docs.filter((f) => f.doc_type === k); return `<tr><td>${esc(name)}</td><td>${fs.length ? fs.map((f) => `<a class="red" style="text-decoration:underline" href="/api/admin/quote-docs/${f.id}" target="_blank" rel="noopener">${esc(f.file_name || '파일')}</a> <span class="hint">${kb(f.size)} · ${kst(f.created_at)}</span>`).join('<br>') : '<span class="hint">미등록</span>'}</td></tr>`; }).join('')}
+</tbody></table></div>
+${st === 'quote' ? '<p class="hint" style="margin:0">아직 사용자가 심사를 요청하지 않았습니다. 사용자가 서류를 올리고 \'심사진행 요청\'을 누르면 여기서 승인 · 부결할 수 있습니다.</p>'
+    : st === 'review' ? `<label class="field">사유 · 안내 (선택, 사용자에게 보임)<textarea class="textarea" id="qrNote" rows="2" maxlength="300" placeholder="예: 소득증빙 확인 완료 / 부결 사유"></textarea></label>
+<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-sm" type="button" data-decide="rejected">부결</button><button class="btn btn-red btn-sm" type="button" data-decide="approved">승인</button></div>`
+    : '<div style="display:flex;justify-content:flex-end"><button class="btn btn-sm" type="button" data-decide="review">심사진행으로 되돌리기</button></div>'}
+</div>`;
   main.innerHTML = `<div class="a-title"><div><h1>견적 ${esc(x.no)}</h1><p class="desc">${kst(x.created_at)} 발행</p></div><a class="btn btn-sm" href="#quotelogs">목록으로</a></div>
+${review}
 <div class="split"><div class="l box box-pad" style="display:flex;flex-direction:column;gap:10px"><h2 style="font-size:16px">발행 정보</h2>
 <dl class="dl"><dt>사용자</dt><dd>${esc(x.user_name)} (${esc(x.username)})${x.user_company ? ' · ' + esc(x.user_company) : ''}</dd>
 <dt>상품구분</dt><dd><strong>${r.prod ? `${esc(r.prod.code)} · ${esc(r.prod.name)}` : 'N · 일반상품'}</strong></dd>
@@ -1376,6 +1395,18 @@ ${row('납입방식', (o) => (o.type ? '선불 (1회차 출고 시)' : '후불')
 ${row('월 렌트료 (공급가)', (o) => won(o.supply))}${row('부가세', (o) => won(o.vat))}${row('월 납입금', (o) => `<strong>${won(o.month)}</strong>`)}
 ${row('출고 전 납입', (o) => won(o.upfront))}${row('총 납입 (월 × 기간 + 선납)', (o) => won(o.total))}${row('실질금리 (AG 지급 후)', (o) => pc(o.irr))}
 </tbody></table></div></div>`;
+  const ASK = { approved: '이 견적을 승인할까요?', rejected: '이 견적을 부결할까요?', review: '승인 · 부결을 취소하고 심사진행으로 되돌릴까요?' };
+  $$('[data-decide]').forEach((b) => b.addEventListener('click', async () => {
+    const decision = b.dataset.decide;
+    if (!confirm(ASK[decision])) return;
+    b.disabled = true;
+    try {
+      await api(`/api/admin/quote-logs/${x.id}/decide`, { method: 'POST', body: { decision, note: $('#qrNote')?.value.trim() || '' } });
+      toast(decision === 'approved' ? '승인했습니다.' : decision === 'rejected' ? '부결했습니다.' : '심사진행으로 되돌렸습니다.');
+      refreshCounts();
+      quoteLogDetail(x.id);
+    } catch (e) { toast(e.message, true); b.disabled = false; }
+  }));
 }
 
 

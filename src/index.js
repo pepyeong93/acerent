@@ -10,6 +10,7 @@ import { retryFailed } from './lib/mail.js';
 import { registerPublic } from './routes/public.js';
 import { registerAdmin } from './routes/admin.js';
 import { registerQuote } from './routes/quote.js';
+import { registerQuoteReview } from './routes/quoteReview.js';
 import { registerCommunity } from './routes/community.js';
 import { registerAdClicks, purgeAdClicks } from './routes/adclicks.js';
 import { serveImage } from './routes/upload.js';
@@ -19,6 +20,7 @@ const router = new Router();
 registerPublic(router);
 registerAdmin(router);
 registerQuote(router);
+registerQuoteReview(router);
 registerCommunity(router);
 registerAdClicks(router);
 

@@ -401,7 +401,7 @@ async function download(kind) {
       const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.95));
       await saveBlob(blob, fileName(no, 'jpg'));
     }
-    toast(`견적서 ${no} ${kind.toUpperCase()}를 내려받았습니다.`);
+    toast(`견적서 ${no} ${kind.toUpperCase()}를 내려받았습니다. '내 견적 · 심사'에서 서류를 올리고 심사를 요청할 수 있습니다.`);
   } catch (e) {
     if (/로그인/.test(e.message)) return boot();
     toast(e.message || '견적서 파일을 만들지 못했습니다. 잠시 후 다시 눌러 주세요.', true);

@@ -72,6 +72,7 @@
   </div>
   <div class="who">
     <span><strong id="whoName"></strong> <span id="whoCompany"></span></span>
+    <span class="q-tabs" role="tablist" aria-label="화면 선택"><button class="btn on" type="button" role="tab" aria-selected="true" id="tabNew">견적 작성</button><button class="btn" type="button" role="tab" aria-selected="false" id="tabMy">내 견적 · 심사</button></span>
     <button class="btn" type="button" id="resetBtn">새 견적</button>
     <button class="btn" type="button" id="pwBtn">비밀번호 변경</button>
     <button class="btn" type="button" id="logoutBtn">로그아웃</button>
@@ -137,6 +138,7 @@
     <div class="q-stage" id="stage"><div class="q-scaler" id="scaler"><div class="paper" id="paper"></div></div></div>
   </div>
 </div>
+<div class="q-my" id="myView" hidden></div>
 </div>
 
 <dialog id="dlg" class="dlg"><form method="dialog" id="dlgBody">
@@ -153,5 +155,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module" src="/quote/quote.js"></script>
+<script type="module" src="/quote/my.js"></script>
 </body>
 </html>
