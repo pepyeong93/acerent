@@ -6,6 +6,7 @@ import {
   updateKeywordBid, pauseKeyword, addKeywords, updateCampaignBudget,
 } from './naverAds.js';
 import { notifyAdmins, buildMailHtml } from './mail.js';
+import { createSetup, deleteCampaign } from './adsSetup.js';
 
 export const DEFAULT_CONFIG = {
   dailyBudget: 50000,        // 하루 최대 광고비 (원) — 캠페인 하루 예산 합이 넘으면 낮추자고 제안
@@ -75,7 +76,11 @@ export async function syncStep(env, force = false) {
   if (st.done) return st;
   const slice = st.groups.slice(st.idx, st.idx + GROUPS_PER_STEP);
   const stmts = [];
+  let processed = 0;
   for (const g of slice) {
+    // 키워드가 아주 많은 광고그룹은 DB 저장 요청이 한도를 넘지 않게 한 번에 최대 약 1,500개(500개 넘으면 멈춤)까지만 처리하고 다음 실행으로 넘김
+    if (stmts.length > 500) break;
+    processed++;
     const kws = (await listKeywords(env, g.id)) || [];
     for (const k of kws) {
       stmts.push(db.prepare(
@@ -87,8 +92,8 @@ export async function syncStep(env, force = false) {
       ).bind(k.nccKeywordId, k.keyword, g.id, g.name, g.cid, g.cname, k.useGroupBidAmt ? g.bid : k.bidAmt || 0, k.useGroupBidAmt ? 1 : 0, k.userLock || g.lock ? 1 : 0, k.status || ''));
     }
   }
-  for (let i = 0; i < stmts.length; i += 80) await db.batch(stmts.slice(i, i + 80));
-  st.idx += slice.length;
+  for (let i = 0; i < stmts.length; i += 100) await db.batch(stmts.slice(i, i + 100));
+  st.idx += processed;
   if (st.idx >= st.groups.length) {
     st.done = true;
     st.doneAt = Date.now();
@@ -102,7 +107,8 @@ export async function syncStep(env, force = false) {
 // ── 2. 성과 수집 (하루 단위) ──
 export async function collectStats(env, day) {
   const db = env.DB;
-  const { results: kws } = await db.prepare('SELECT keyword_id FROM ad_keywords').all();
+  // 꺼진 키워드는 성과가 없으므로 제외 (요청 수 한도 보호), 최대 3,000개
+  const { results: kws } = await db.prepare('SELECT keyword_id FROM ad_keywords WHERE paused = 0 LIMIT 3000').all();
   if (!kws.length) return 0;
   const data = await getStats(env, kws.map((k) => k.keyword_id), day, day);
   const stmts = data.map((d) =>
@@ -290,6 +296,16 @@ export async function applyProposal(env, id, adminName) {
       await db.prepare('UPDATE ad_keywords SET paused = 1 WHERE keyword_id = ?').bind(p.keyword_id).run();
     } else if (p.type === 'add_keyword') {
       await addKeywords(env, p.adgroup_id, [{ keyword: p.keyword, bid: Math.min(p.to_value, cfg.maxBid) }]);
+    } else if (p.type === 'delete_campaign') {
+      await deleteCampaign(env, p.campaign_id);
+      await db.prepare('DELETE FROM ad_keywords WHERE campaign_id = ?').bind(p.campaign_id).run();
+      await db.prepare(`DELETE FROM settings WHERE key = 'ads_sync'`).run(); // 다음 실행에서 처음부터 다시 동기화
+    } else if (p.type === 'setup') {
+      const msg = await createSetup(env);
+      await db.prepare(`DELETE FROM settings WHERE key = 'ads_sync'`).run();
+      await db.prepare(`UPDATE ad_proposals SET status = 'applied', result = ?, decided_at = datetime('now'), decided_by = ? WHERE id = ?`).bind(msg.slice(0, 300), adminName || '', id).run();
+      await logRun(db, 'apply', true, `#${id} setup ${msg}`);
+      return { ok: true, message: msg };
     } else if (p.type === 'budget') {
       const camp = ((await listCampaigns(env)) || []).find((c) => c.nccCampaignId === p.campaign_id); // 캠페인 목록 1회
       if (!camp) throw new Error('캠페인을 찾을 수 없습니다.');
@@ -305,7 +321,7 @@ export async function applyProposal(env, id, adminName) {
   }
 }
 
-const TYPE_NAME = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산' };
+const TYPE_NAME = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산', delete_campaign: '캠페인 삭제', setup: '새 캠페인 만들기' };
 function proposalMail(made) {
   return made.map((m) => [TYPE_NAME[m.type] || m.type, `${m.keyword}${m.type === 'bid' ? ` : ${won(m.from)} → ${won(m.to)}` : m.type === 'add_keyword' ? ` (입찰가 ${won(m.to)})` : m.type === 'budget' ? ` : ${won(m.from)} → ${won(m.to)}` : ''}`]);
 }
