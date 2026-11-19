@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "public/quote/index.html"
+        ],
+        "createdAt": "2026-11-19T02:26:44.793Z",
+        "reason": "Claude triage: only match is a 1px gray logo|title divider (border-left:1px solid var(--line)), not a thick accent tab; predates this session (b47d530)"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "public/admin/index.html"
+        ],
+        "createdAt": "2026-11-19T02:26:45.666Z",
+        "reason": "Claude triage: only match is a 1px gray logo|title divider (border-left:1px solid var(--line)), not a thick accent tab; predates this session"
+      }
+    ]
+  }
+}
