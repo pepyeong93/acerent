@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>주차장 경고문</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 210mm; height: 297mm; background: #fff; }
+  body { font-family: "Malgun Gothic", "맑은 고딕", sans-serif; color: #111; }
+  .page { width: 210mm; height: 297mm; padding: 12mm; display: flex; flex-direction: column; }
+  .frame { flex: 1; border: 4mm solid #111; display: flex; flex-direction: column; }
+  .stripe { height: 11mm; background: repeating-linear-gradient(-45deg, #ffcc00 0 9mm, #111 9mm 18mm); }
+  .head { background: #d40000; color: #fff; text-align: center; padding: 5mm 6mm 5mm; }
+  .head .tri { display: inline-block; width: 0; height: 0; border-left: 13mm solid transparent; border-right: 13mm solid transparent; border-bottom: 22mm solid #ffcc00; position: relative; margin-bottom: 3mm; }
+  .head .tri b { position: absolute; left: -4mm; top: 5mm; width: 8mm; text-align: center; font-size: 15mm; line-height: 1; color: #111; font-weight: 900; }
+  .head h1 { font-size: 26mm; letter-spacing: 6mm; font-weight: 900; line-height: 1; }
+  .head p { font-size: 6.4mm; font-weight: 700; margin-top: 3mm; letter-spacing: .3mm; }
+  .body { flex: 1; padding: 5mm 9mm 4mm; display: flex; flex-direction: column; }
+  .cctv { display: flex; align-items: center; gap: 5mm; background: #111; color: #fff; padding: 5mm 6mm; }
+  .cctv .rec { flex: none; display: flex; align-items: center; gap: 2mm; border: .8mm solid #fff; padding: 1.5mm 3mm; font-weight: 900; font-size: 5.4mm; }
+  .cctv .rec i { width: 4mm; height: 4mm; border-radius: 50%; background: #ff2a2a; display: inline-block; }
+  .cctv div { font-size: 5.6mm; font-weight: 800; line-height: 1.45; }
+  .cctv div em { font-style: normal; color: #ffcc00; }
+  .lead { font-size: 5.1mm; line-height: 1.6; margin: 4mm 0 3.5mm; font-weight: 600; }
+  .lead strong { color: #d40000; }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm; margin-bottom: 3.5mm; }
+  .acts span { border: .6mm solid #111; padding: 2.2mm 3mm; font-size: 4.6mm; font-weight: 800; }
+  .acts span::before { content: "✕ "; color: #d40000; }
+  .law { border-left: 2.2mm solid #d40000; background: #f4f4f4; padding: 3.5mm 4.5mm; font-size: 4.15mm; line-height: 1.65; }
+  .law b { font-weight: 800; }
+  .final { margin-top: 4mm; background: #ffcc00; border: .8mm solid #111; text-align: center; padding: 4.5mm 4mm; }
+  .final h2 { font-size: 7.6mm; font-weight: 900; line-height: 1.35; }
+  .final h2 u { text-decoration-color: #d40000; text-decoration-thickness: 1mm; text-underline-offset: 1.5mm; }
+  .final p { font-size: 4.3mm; font-weight: 700; margin-top: 1.5mm; }
+  .foot { display: flex; justify-content: space-between; align-items: flex-end; padding: 4mm 9mm 5mm; font-size: 4.2mm; font-weight: 700; }
+  .foot .org { font-size: 5.4mm; font-weight: 900; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="frame">
+    <div class="stripe"></div>
+    <div class="head">
+      <div class="tri"><b>!</b></div>
+      <h1>경 고</h1>
+      <p>사유지 · 렌터카 차량 보관 주차장<br>관계자 외 출입 금지</p>
+    </div>
+    <div class="body">
+      <div class="cctv">
+        <span class="rec"><i></i>REC</span>
+        <div>24시간 CCTV 녹화 중<br><em>최근 야간에 발생한 행위자들의 얼굴과 행동이 담긴 영상을 확보했습니다.</em></div>
+      </div>
+      <p class="lead">
+        직원 퇴근 후 무단으로 들어와 흡연 · 꽁초 투기 · 구토 · <strong>시설물 파손</strong>을 한 사실을 확인했습니다.
+        확보한 영상은 증거로 보관하고 있으며, <strong>같은 일이 다시 발생하면 즉시 경찰에 신고</strong>하고
+        이전 영상까지 함께 제출하겠습니다.
+      </p>
+      <div class="acts">
+        <span>무단 출입</span>
+        <span>흡연 · 꽁초 투기</span>
+        <span>시설물 · 차량 파손</span>
+        <span>오물 · 쓰레기 투기</span>
+      </div>
+      <div class="law">
+        <b>형법 제366조 재물손괴</b> — 3년 이하 징역 또는 700만원 이하 벌금<br>
+        <b>형법 제319조 건조물 등 침입</b> — 3년 이하 징역 또는 500만원 이하 벌금<br>
+        <b>경범죄 처벌법 제3조</b> — 쓰레기 · 오물 투기 등 처벌<br>
+        <b>민사상 손해배상</b> — 파손 · 청소 비용 전액 청구 (미성년자는 보호자에게도 청구)
+      </div>
+      <div class="final">
+        <h2>다음 적발 시 <u>경고 없이 경찰 신고</u>합니다</h2>
+        <p>미성년자도 예외 없이 학교 · 보호자에게 연락됩니다</p>
+      </div>
+    </div>
+    <div class="foot">
+      <span>신고 · 문의 1644-8891</span>
+      <span class="org">에이스렌터카</span>
+    </div>
+    <div class="stripe"></div>
+  </div>
+</div>
+</body>
+</html>
