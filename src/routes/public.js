@@ -200,7 +200,7 @@ export function registerPublic(r) {
     for (const p of photos.results) if (!firstPhoto.has(p.vehicle_id)) firstPhoto.set(p.vehicle_id, p.image_key);
     return json({
       vehicles: vs.map((v) => ({
-        id: v.id, name: v.name, class: v.class, year: v.year, km: v.km, fuel: v.fuel, badge: v.badge, car_value: v.car_value,
+        id: v.id, name: v.name, plate: v.show_plate ? v.plate : '', class: v.class, year: v.year, km: v.km, fuel: v.fuel, badge: v.badge, car_value: v.car_value,
         status: v.status, avail_note: v.avail_note, photo: img(firstPhoto.get(v.id)), pricing: pricingOf(v.pricing),
         bases: prices.results.filter((p) => p.vehicle_id === v.id).map((p) => ({ term: p.term, monthly: p.monthly })),
         mainPlan: v.price_mode === 'quote' ? usedMain(v) : (({ vehicle_id, is_main, ...x }) => x)(plans.results.find((p) => p.vehicle_id === v.id) || {}),
