@@ -18,7 +18,7 @@ export const DEFAULT_CONFIG = {
   wasteCost: 15000,          // 최근 7일 이 금액 이상 쓰고
   wasteClicks: 10,           //   이 클릭 이상인데 전환이 0이면 입찰가 인하 · 중지 제안
   discoveryMinVolume: 30,    // 새 키워드 추천: 월간 검색수 최소
-  discoveryLimit: 10,        // 하루 추천 개수
+  discoveryLimit: 15,        // 하루 추천 개수 (유입 확대를 위해 넉넉히)
   defaultAdgroupId: '',      // 새 키워드를 넣을 광고그룹 (비우면 가장 비슷한 광고그룹)
   seeds: ['인천공항 렌트카', '김포공항 렌트카', '월렌트', '한달 렌트카', '일주일 렌트카', '일산 렌트카', '고양 렌트카', '공항 렌터카', '단기렌트'],
   mustContain: ['렌트', '렌터카', '렌트카', '대여', '카셰어'],
@@ -172,6 +172,8 @@ export async function analyzeBids(env, cfg, pr) {
     const ok = await pr.add({ type, keyword_id: k.keyword_id, keyword: k.keyword, adgroup_id: k.adgroup_id, adgroup_name: k.adgroup_name, campaign_id: k.campaign_id, from_value: k.bid, to_value: type === 'bid' ? to : 0, reason, data });
     if (ok) made.push({ type, keyword: k.keyword, from: k.bid, to, reason });
   };
+  const today = await db.prepare('SELECT COALESCE(SUM(cost),0) c FROM ad_stats_daily WHERE day = ?').bind(kstDay()).first();
+  const budgetRoom = today.c < cfg.dailyBudget * 0.6; // 오늘 예산 60% 미만 사용 → 유입 늘릴 여유 있음
   const noImpKeys = [];
   for (const k of rows) {
     const d = { imp7: k.imp, clk7: k.clk, cost7: k.cost, conv7: k.conv, rank7: Math.round(k.rank * 10) / 10 };
@@ -183,6 +185,8 @@ export async function analyzeBids(env, cfg, pr) {
       else await add(k, 'bid', k.bid * (1 - step), `최근 7일 클릭 ${k.clk}회 · 비용 ${won(k.cost)} 썼지만 전환 0건 → 입찰가 인하`, d);
     } else if (k.conv > 0 && k.rank > 0 && k.rank <= 1.5 && k.bid > cfg.minBid * 3) {
       await add(k, 'bid', k.bid * (1 - step / 2), `평균 ${d.rank7}위로 1위권 유지 중(전환 ${k.conv}건) → 순위는 지키면서 비용 절감을 위해 소폭 인하`, d);
+    } else if (budgetRoom && k.imp >= 20 && k.rank > 5 && k.bid < cfg.maxBid && !(k.clk >= cfg.wasteClicks && k.cost >= cfg.wasteCost)) {
+      await add(k, 'bid', k.bid * (1 + step), `최근 7일 노출 ${k.imp}회인데 평균 ${d.rank7}위로 순위가 낮아 클릭이 적음(${k.clk}회) → 유입을 늘리려 입찰가 인상 (오늘 예산 여유 있음)`, d);
     } else if (k.imp === 0) {
       const age = (Date.now() - Date.parse(String(k.first_seen).replace(' ', 'T') + 'Z')) / 86400000;
       if (age >= 2) noImpKeys.push({ k, d });
@@ -198,7 +202,6 @@ export async function analyzeBids(env, cfg, pr) {
     }
   }
   // 하루 예산 속도: 오후 3시 전에 하루 예산의 80%를 넘게 쓰면 전환 없는 고비용 키워드 인하
-  const today = await db.prepare('SELECT COALESCE(SUM(cost),0) c FROM ad_stats_daily WHERE day = ?').bind(kstDay()).first();
   if (today.c >= cfg.dailyBudget * 0.8 && kstHour() < 15) {
     const top = rows.filter((k) => k.conv === 0 && k.cost > 0).sort((a, b) => b.cost - a.cost).slice(0, 3);
     for (const k of top) await add(k, 'bid', k.bid * (1 - step), `오늘 오후 3시 전에 이미 ${won(today.c)} 사용(하루 한도 ${won(cfg.dailyBudget)}의 80% 이상) → 전환 없는 고비용 키워드 인하`, { today: today.c });
