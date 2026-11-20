@@ -35,7 +35,8 @@ export default {
     const url = new URL(request.url);
     // www 없는 주소로 들어오면 www 로 영구 이동 — GET · HEAD 만. 단, 화면(HTML · 이미지 등 정적 파일)은 Worker 를 거치지 않으므로
     // 여기서는 API 등만 이동됨. 화면까지 옮기려면 Cloudflare 대시보드 Redirect Rule 사용. 각 화면에는 canonical(www) 표시가 있음
-    if (url.hostname === 'acerentcar.co.kr' && (request.method === 'GET' || request.method === 'HEAD')) {
+    // API(/api/*)는 이동하지 않음 — www 없는 주소의 화면이 부르는 fetch 가 다른 사이트(www)로 넘어가면 브라우저가 막아 'Failed to fetch' 가 됨
+    if (url.hostname === 'acerentcar.co.kr' && !url.pathname.startsWith('/api/') && (request.method === 'GET' || request.method === 'HEAD')) {
       return Response.redirect('https://www.acerentcar.co.kr' + url.pathname + url.search, 301);
     }
     try {
