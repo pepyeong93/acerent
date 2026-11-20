@@ -2,6 +2,7 @@
 //   관리자 '네이버 광고' 승인 대기의 '새 캠페인 만들기' 제안을 승인하면 createSetup() 이 실행됨
 //   캠페인은 꺼진 상태(userLock)로 만들어, 광고 검수 · 최종 확인 후 켬
 //   광고 문구에는 가운뎃점(·) 같은 특수문자를 쓸 수 없음 (네이버: 한글 · 영문 · 일부 특수문자만)
+//   키워드는 띄어쓰기 없이 등록해야 함 (띄어쓰기가 들어간 키워드는 등록되지 않았음, 2026-11-20 확인)
 import { adsApi } from './naverAds.js';
 
 const SITE = 'https://www.acerentcar.co.kr';
@@ -11,27 +12,27 @@ export const SETUP_PLAN = {
   groups: [
     {
       name: '인천공항', url: `${SITE}/short?loc=1`, bid: 800,
-      keywords: [['인천공항 렌트카', 1000], ['인천공항 렌터카', 1000], ['인천공항렌트카', 900], ['인천공항 렌트카 가격', 800], ['인천공항 렌트카 추천', 800], ['인천공항 1터미널 렌트카', 800], ['인천공항 2터미널 렌트카', 800], ['영종도 렌트카', 700]],
+      keywords: [['인천공항렌트카', 1000], ['인천공항렌터카', 1000], ['인천공항렌트카가격', 800], ['인천공항렌트카추천', 800], ['인천공항1터미널렌트카', 800], ['인천공항2터미널렌트카', 800], ['영종도렌트카', 700]],
       ad: { headline: '인천공항 렌트카 에이스', description: '자차보험 포함, 배회차비 0원. 신형급 기아 차량, 예약금 없이 실시간 예약' },
     },
     {
       name: '김포공항', url: `${SITE}/short?loc=3`, bid: 700,
-      keywords: [['김포공항 렌트카', 900], ['김포공항 렌터카', 900], ['김포공항렌트카', 800], ['김포공항 렌트카 가격', 700], ['김포 렌트카', 700]],
+      keywords: [['김포공항렌트카', 900], ['김포공항렌터카', 900], ['김포공항렌트카가격', 700], ['김포렌트카', 700]],
       ad: { headline: '김포공항 렌트카 에이스', description: '자차보험 포함, 배회차비 0원. 김포공항 인도, 예약금 없이 실시간 예약' },
     },
     {
       name: '월렌트', url: `${SITE}/short?days=30`, bid: 600,
-      keywords: [['월렌트', 800], ['월렌트카', 800], ['한달 렌트카', 800], ['한달렌트카', 700], ['한달 렌트 가격', 700], ['월렌트 가격', 700], ['월렌트 저렴한곳', 600], ['레이 월렌트', 600], ['SUV 월렌트', 600]],
+      keywords: [['월렌트', 800], ['월렌트카', 800], ['한달렌트카', 800], ['한달렌트가격', 700], ['월렌트가격', 700], ['월렌트저렴한곳', 600], ['레이월렌트', 600], ['SUV월렌트', 600]],
       ad: { headline: '월렌트 에이스렌터카', description: '레이 월 60만원부터, 자차보험 포함 확정가. 공항, 일산 인도' },
     },
     {
       name: '주단위', url: `${SITE}/short?days=7`, bid: 500,
-      keywords: [['일주일 렌트카', 700], ['일주일 렌트', 600], ['주단위 렌트', 600], ['7일 렌트카', 600], ['일주일 렌트카 가격', 500]],
+      keywords: [['일주일렌트카', 700], ['일주일렌트', 600], ['주단위렌트', 600], ['7일렌트카', 600], ['일주일렌트카가격', 500]],
       ad: { headline: '주단위 렌트 에이스', description: '레이 7일 32만원부터, 자차보험 포함. 인천, 김포공항 인도' },
     },
     {
       name: '일산·고양', url: `${SITE}/short?loc=4`, bid: 500,
-      keywords: [['일산 렌트카', 500], ['고양 렌트카', 500], ['일산 렌터카', 500], ['화정 렌트카', 500], ['대화동 렌트카', 500]],
+      keywords: [['일산렌트카', 500], ['고양렌트카', 500], ['일산렌터카', 500], ['화정렌트카', 500], ['대화동렌트카', 500]],
       ad: { headline: '일산 렌트카 에이스', description: '자차보험 포함, 일산 본점 인도. 신형급 기아 차량, 예약금 없이 실시간 예약' },
     },
   ],
@@ -94,6 +95,17 @@ export async function ensureSetupAds(env, plan = SETUP_PLAN) {
   for (const g of plan.groups) {
     const grp = groups.find((x) => x.name === g.name);
     if (!grp) { notes.push(`${g.name} 광고그룹 없음`); continue; }
+    try {
+      const have = new Set(((await adsApi(env, 'GET', '/ncc/keywords', { query: { nccAdgroupId: grp.nccAdgroupId } })) || []).map((k) => String(k.keyword).replace(/s+/g, '')));
+      const miss = g.keywords.filter(([k]) => !have.has(k.replace(/s+/g, '')));
+      if (miss.length) {
+        const made = await adsApi(env, 'POST', '/ncc/keywords', {
+          query: { nccAdgroupId: grp.nccAdgroupId },
+          body: miss.map(([keyword, bid]) => ({ nccAdgroupId: grp.nccAdgroupId, keyword: keyword.replace(/s+/g, ''), bidAmt: bid, useGroupBidAmt: false })),
+        });
+        done.push(`${g.name} 키워드 ${(made || []).length}개`);
+      }
+    } catch (e) { notes.push(`${g.name} 키워드 실패: ${String(e.message || e).slice(0, 80)}`); }
     try {
       const ads = (await adsApi(env, 'GET', '/ncc/ads', { query: { nccAdgroupId: grp.nccAdgroupId } })) || [];
       if (!ads.length) {

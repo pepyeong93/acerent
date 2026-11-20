@@ -92,7 +92,7 @@ export const pauseKeyword = (env, kw, paused = true) =>
 export const addKeywords = (env, adgroupId, items) =>
   adsApi(env, 'POST', '/ncc/keywords', {
     query: { nccAdgroupId: adgroupId },
-    body: items.map((x) => ({ nccAdgroupId: adgroupId, keyword: x.keyword, bidAmt: x.bid, useGroupBidAmt: false })),
+    body: items.map((x) => ({ nccAdgroupId: adgroupId, keyword: String(x.keyword).replace(/s+/g, ''), bidAmt: x.bid, useGroupBidAmt: false })), // 띄어쓰기 없이
   });
 export const updateCampaignBudget = (env, campaign, dailyBudget) =>
   adsApi(env, 'PUT', `/ncc/campaigns/${campaign.nccCampaignId}`, {
