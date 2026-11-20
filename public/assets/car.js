@@ -58,7 +58,7 @@ showPhoto(0);
 const kv = (rows) => rows.filter((r) => r[1] !== '' && r[1] != null).map(([k, val, cls]) => `<div class="${cls || ''}"><dt>${esc(k)}</dt><dd>${esc(val)}</dd></div>`).join('');
 const dep = v.new_price && cv > 0 ? v.new_price - (v.tax_cut || 0) - cv : 0; // 현재 차량가격이 없으면 감가상각 표시 안 함
 $('#kvMain').innerHTML = kv([
-  ['차량 번호', v.plate || ''],
+  ['차량번호', v.plate || ''],
   ['신차가격', v.new_price ? W(v.new_price) : ''],
   ['신차 개소세 감면', v.tax_cut ? '-' + W(v.tax_cut) : '', 'minus'],
   ['감가상각', dep > 0 ? '-' + W(dep) : '', 'minus'],
