@@ -104,3 +104,13 @@ body.admin { background: var(--bg-soft); }
 details.more summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 10px 0; border-top: 1px solid var(--line); }
 .savebar { position: sticky; bottom: 0; background: #fff; border-top: 2px solid var(--ink); margin-top: 22px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 5; }
 @media (max-width: 760px) { .regt th { width: 96px; white-space: normal; } .regt, .regt tbody, .regt tr { display: block; } .regt tr { display: grid; grid-template-columns: 96px 1fr; } .regt td[colspan] { grid-column: 2; } }
+
+/* 노출 ON/OFF 스위치 (중장기 차량 목록) */
+.sw { position: relative; display: inline-flex; align-items: center; width: 62px; height: 28px; padding: 0; border: 0; border-radius: 14px; background: #c9c9c9; cursor: pointer; transition: background .15s; }
+.sw[aria-checked="true"] { background: #1a7f37; }
+.sw:disabled { opacity: .6; cursor: wait; }
+.sw:focus-visible { outline: 2px solid var(--red, #C8102E); outline-offset: 2px; }
+.sw-knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.sw[aria-checked="true"] .sw-knob { transform: translateX(34px); }
+.sw-txt { width: 100%; padding: 0 9px 0 28px; font-size: 12px; font-weight: 700; color: #fff; text-align: left; }
+.sw[aria-checked="true"] .sw-txt { padding: 0 28px 0 9px; }

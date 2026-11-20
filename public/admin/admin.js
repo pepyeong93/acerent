@@ -488,10 +488,27 @@ PAGES.long = async (arg) => {
 <tbody>${items.length ? items.map((v) => `<tr class="click ${+arg === v.id ? 'sel' : ''}" data-id="${v.id}"><td>${v.photo ? `<img class="thumb" src="${esc(v.photo)}" alt="">` : '<span class="thumb empty">사진 없음</span>'}</td>
 <td><strong>${esc(v.name)}</strong><br><span class="hint">${[v.maker, v.model_group, v.year ? v.year + '년식' : '', v.km ? won(v.km) + 'km' : ''].filter(Boolean).map(esc).join(' · ')}</span></td>
 <td>${esc(v.plate || '-')}</td><td class="num">${v.photo_n}</td><td class="num">${v.price_mode === 'quote' ? (v.acq_cost ? '견적형' : '<span class="red">견적형 · 취득원가 미입력</span>') : v.main_monthly ? won(v.main_monthly) + '원' : v.plan_n ? '-' : '<span class="red">미입력</span>'}</td>
-<td>${esc(LONG_STATUS[v.status] || v.status)}</td><td>${v.visible ? '<span class="st st-ok">노출</span>' : '<span class="st st-off">숨김</span>'}</td></tr>`).join('') : '<tr><td colspan="7" class="muted" style="padding:40px;text-align:center">등록된 차량이 없습니다. \'+ 차량 등록\'을 눌러 시작하세요.</td></tr>'}</tbody></table></div>
+<td>${esc(LONG_STATUS[v.status] || v.status)}</td><td><button type="button" class="sw" role="switch" aria-checked="${v.visible ? 'true' : 'false'}" data-vis="${v.id}" aria-label="${esc(v.name)} 홈페이지 노출"><span class="sw-knob"></span><span class="sw-txt">${v.visible ? 'ON' : 'OFF'}</span></button></td></tr>`).join('') : '<tr><td colspan="7" class="muted" style="padding:40px;text-align:center">등록된 차량이 없습니다. \'+ 차량 등록\'을 눌러 시작하세요.</td></tr>'}</tbody></table></div>
 <div id="detail"></div>`;
   $('#newCar').addEventListener('click', registerByPlate);
   $$('tr[data-id]').forEach((tr) => tr.addEventListener('click', () => (location.hash = '#long/' + tr.dataset.id)));
+  // 노출 ON/OFF 스위치: 누르면 바로 홈페이지 중고장기렌트 목록에 반영
+  $$('[data-vis]').forEach((b) => b.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const v = items.find((x) => x.id === +b.dataset.vis);
+    const on = b.getAttribute('aria-checked') !== 'true';
+    if (on && v.price_mode === 'quote' && !v.acq_cost) return toast('견적형 차량은 취득원가 · 신차가격 · 잔가율을 넣어야 노출할 수 있습니다. 차량을 눌러 입력해 주세요.', true);
+    if (on && v.price_mode !== 'quote' && !v.plan_n) return toast('이용금액을 한 줄 이상 넣어야 노출할 수 있습니다. 차량을 눌러 입력해 주세요.', true);
+    b.disabled = true;
+    try {
+      await api('/api/admin/long/' + v.id, { method: 'PATCH', body: { visible: on } });
+      v.visible = on ? 1 : 0;
+      b.setAttribute('aria-checked', String(on)); $('.sw-txt', b).textContent = on ? 'ON' : 'OFF';
+      toast(on ? `${v.name} — 홈페이지에 노출합니다.` : `${v.name} — 홈페이지에서 숨겼습니다.`);
+      if ($('#v_visible') && +arg === v.id) $('#v_visible').checked = on;
+    } catch (err) { toast(err.message, true); }
+    b.disabled = false;
+  }));
   if (arg) carEditor(+arg);
 };
 
