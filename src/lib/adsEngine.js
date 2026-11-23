@@ -164,7 +164,13 @@ export async function analyzeBids(env, cfg, pr) {
   const rows = (await recentStats(db, 7)).filter((k) => !k.paused);
   const step = Math.max(5, Math.min(50, cfg.maxChangePct)) / 100;
   const made = [];
+  // 최근 2일 안에 입찰가 · 중지를 적용한 키워드는 효과가 성과에 나올 때까지 새 제안을 쉰다
+  const { results: recentApplied } = await db.prepare(
+    `SELECT DISTINCT keyword_id FROM ad_proposals WHERE status = 'applied' AND type IN ('bid','pause') AND decided_at > datetime('now', '-2 days')`
+  ).all();
+  const cooling = new Set(recentApplied.map((r) => r.keyword_id));
   const add = async (k, type, to, reason, data) => {
+    if (cooling.has(k.keyword_id)) return;
     if (type === 'bid') {
       to = Math.max(cfg.minBid, Math.min(cfg.maxBid, r10(to)));
       if (to === k.bid) return;
