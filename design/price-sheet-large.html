@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>렌트 요금표</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 210mm; height: 297mm; background: #fff; }
+  body { font-family: "Malgun Gothic", "맑은 고딕", sans-serif; color: #000; }
+  .page { width: 210mm; height: 297mm; padding: 11mm 11mm 9mm; display: flex; flex-direction: column; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.2mm solid #C8102E; padding-bottom: 3mm; }
+  .head h1 { font-size: 13mm; font-weight: 900; letter-spacing: .5mm; }
+  .head .org { text-align: right; }
+  .head .org b { display: block; font-size: 8mm; font-weight: 900; color: #C8102E; }
+  .head .org span { font-size: 6mm; font-weight: 800; }
+  .sub { font-size: 5.6mm; font-weight: 800; margin: 3.5mm 0 3mm; }
+  .sub em { font-style: normal; color: #C8102E; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #111; color: #fff; font-size: 6.4mm; font-weight: 900; padding: 3mm 1mm; border: .5mm solid #111; }
+  th small { display: block; font-size: 4.4mm; font-weight: 700; color: #ffd200; margin-top: .6mm; }
+  td { border: .5mm solid #111; font-size: 8.4mm; font-weight: 900; text-align: center; padding: 2.6mm 1mm; line-height: 1.15; }
+  td.car { text-align: left; padding-left: 3mm; font-size: 6.6mm; font-weight: 900; }
+  td.car small { display: block; font-size: 4.4mm; font-weight: 700; color: #333; }
+  tr:nth-child(even) td { background: #f2f2f2; }
+  td.wk { color: #C8102E; }
+  td.mo { color: #0b3fa8; }
+  .notes { margin-top: auto; border: .8mm solid #111; padding: 3.5mm 5mm; font-size: 5.4mm; font-weight: 800; line-height: 1.55; }
+  .notes b { color: #C8102E; }
+  .tel { margin-top: 3mm; background: #C8102E; color: #fff; text-align: center; padding: 3mm; font-size: 9mm; font-weight: 900; letter-spacing: .5mm; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <h1>렌트 요금표</h1>
+    <div class="org"><b>에이스렌터카</b><span>☎ 1644-8891</span></div>
+  </div>
+  <p class="sub">모든 차량 <em>자차보험 포함</em> · 금액은 기간 전체 요금입니다</p>
+  <table>
+    <thead>
+      <tr><th style="width:34%">차 종</th><th>하루<small>1일</small></th><th>일주일<small>7일</small></th><th>한 달<small>30일</small></th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="car">레이<small>경차 · 가솔린</small></td><td>6만원</td><td class="wk">32만원</td><td class="mo">60만원</td></tr>
+      <tr><td class="car">K3<small>준중형 · 가솔린</small></td><td>6.5만원</td><td class="wk">44만원</td><td class="mo">70만원</td></tr>
+      <tr><td class="car">셀토스<small>소형 SUV · 가솔린</small></td><td>7만원</td><td class="wk">44만원</td><td class="mo">70만원</td></tr>
+      <tr><td class="car">K5<small>중형 · 가솔린</small></td><td>8만원</td><td class="wk">49만원</td><td class="mo">80만원</td></tr>
+      <tr><td class="car">K5<small>중형 · 하이브리드</small></td><td>9만원</td><td class="wk">52만원</td><td class="mo">90만원</td></tr>
+      <tr><td class="car">스포티지<small>SUV · 가솔린</small></td><td>10만원</td><td class="wk">56만원</td><td class="mo">120만원</td></tr>
+      <tr><td class="car">스포티지<small>SUV · 하이브리드</small></td><td>12만원</td><td class="wk">66만원</td><td class="mo">130만원</td></tr>
+      <tr><td class="car">K8<small>준대형 · 하이브리드</small></td><td>11만원</td><td class="wk">65만원</td><td class="mo">140만원</td></tr>
+      <tr><td class="car">쏘렌토<small>SUV · 하이브리드 5·6인승</small></td><td>14만원</td><td class="wk">70만원</td><td class="mo">140만원</td></tr>
+      <tr><td class="car">카니발<small>9인승 · 하이브리드</small></td><td>15만원</td><td class="wk">80만원</td><td class="mo">160만원</td></tr>
+    </tbody>
+  </table>
+  <div class="notes">
+    · 주행 거리: 하루 300km · 일주일 1,200km · 한 달 2,500km<br>
+    · 넘으면 1km당 레이·K3·셀토스 <b>100원</b>, 그 외 차량 <b>200원</b><br>
+    · 2~6일은 하루 요금보다 할인됩니다 (문의 주세요)<br>
+    · 서울 지역은 탁송비 별도
+  </div>
+  <div class="tel">예약 · 문의 ☎ 1644-8891</div>
+</div>
+</body>
+</html>
