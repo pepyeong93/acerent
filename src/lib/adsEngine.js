@@ -196,10 +196,15 @@ export async function analyzeBids(env, cfg, pr) {
   if (noImpKeys.length) {
     let est = {};
     try { est = await estimateBids(env, noImpKeys.map((x) => x.k.keyword), 5); } catch {}
+    const unreachable = [];
     for (const { k, d } of noImpKeys) {
       const e = est[k.keyword];
-      if (e && e > k.bid) await add(k, 'bid', Math.min(e, k.bid * (1 + step * 2)), `최근 7일 노출 0회 → 모바일 5위 예상 입찰가 ${won(e)} 쪽으로 인상`, { ...d, estimate5: e });
+      // 5위 예상 입찰가가 최고 입찰가보다 비싸면 올려도 닿지 않음 → 인상 제안 대신 '경쟁이 비싸 노출 어려움'으로 기록 (일별 리포트에 표시)
+      if (e && e > cfg.maxBid) unreachable.push({ keyword: k.keyword, adgroup_name: k.adgroup_name, bid: k.bid, estimate5: e });
+      else if (e && e > k.bid) await add(k, 'bid', Math.min(e, k.bid * (1 + step * 2)), `최근 7일 노출 0회 → 모바일 5위 예상 입찰가 ${won(e)} 쪽으로 인상`, { ...d, estimate5: e });
     }
+    await db.prepare(`INSERT INTO settings (key, value) VALUES ('ads_unreachable', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+      .bind(JSON.stringify({ checkedAt: new Date().toISOString(), items: unreachable })).run();
   }
   // 하루 예산 속도: 오후 3시 전에 하루 예산의 80%를 넘게 쓰면 전환 없는 고비용 키워드 인하
   if (today.c >= cfg.dailyBudget * 0.8 && kstHour() < 15) {
@@ -269,6 +274,7 @@ export async function discoverKeywords(env, cfg, pr) {
   };
   const made = [];
   for (const c of top) {
+    if (est[c.keyword] && est[c.keyword] > cfg.maxBid) continue; // 5위 예상가가 최고 입찰가보다 비싼 키워드는 추가해도 노출이 어려워 추천하지 않음
     const g = pick(c.keyword);
     if (!g) continue;
     const bid = Math.max(cfg.minBid, Math.min(cfg.maxBid, r10(est[c.keyword] || Math.min(cfg.maxBid, 500))));
@@ -413,8 +419,10 @@ export async function runDaily(env) {
     const pr = new Proposer(db);
     const found = await discoverKeywords(env, cfg, pr);
     await pr.flush();
+    let unreachable = [];
+    try { unreachable = (JSON.parse(((await db.prepare(`SELECT value FROM settings WHERE key = 'ads_unreachable'`).first()) || {}).value || '{}').items) || []; } catch {}
     const summary = {
-      day, total: tot, prev,
+      day, total: tot, prev, unreachable,
       ctr: tot.imp ? Math.round((tot.clk / tot.imp) * 10000) / 100 : 0,
       cpc: tot.clk ? Math.round(tot.cost / tot.clk) : 0,
       cpa: tot.conv ? Math.round(tot.cost / tot.conv) : 0,
@@ -437,6 +445,7 @@ export async function runDaily(env) {
           ['성과 좋은 키워드', best.map((r) => `${r.keyword}(전환 ${r.conv})`).join(', ') || '-'],
           ['비용만 쓴 키워드', waste.map((r) => `${r.keyword}(${won(r.cost)})`).join(', ') || '-'],
           ['새 키워드 추천', found.map((r) => r.keyword).join(', ') || '-'],
+          ['경쟁이 비싸 노출 어려운 키워드', unreachable.map((r) => `${r.keyword}(5위 ${won(r.estimate5)})`).join(', ') || '-'],
         ],
       }),
     }).catch(() => {});
