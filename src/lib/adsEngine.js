@@ -183,8 +183,7 @@ export async function analyzeBids(env, cfg, pr) {
     } else if (k.conv === 0 && k.clk >= cfg.wasteClicks && k.cost >= cfg.wasteCost) {
       if (k.bid <= cfg.minBid * 2) await add(k, 'pause', 0, `최근 7일 클릭 ${k.clk}회 · 비용 ${won(k.cost)} 썼지만 전환 0건, 입찰가도 이미 낮음 → 키워드 중지`, d);
       else await add(k, 'bid', k.bid * (1 - step), `최근 7일 클릭 ${k.clk}회 · 비용 ${won(k.cost)} 썼지만 전환 0건 → 입찰가 인하`, d);
-    } else if (k.conv > 0 && k.rank > 0 && k.rank <= 1.5 && k.bid > cfg.minBid * 3) {
-      await add(k, 'bid', k.bid * (1 - step / 2), `평균 ${d.rank7}위로 1위권 유지 중(전환 ${k.conv}건) → 순위는 지키면서 비용 절감을 위해 소폭 인하`, d);
+    // 전환이 난 키워드는 입찰가를 내리지 않는다 (사장님 방침: 비용보다 노출 · 전환 우선)
     } else if (budgetRoom && k.imp >= 20 && k.rank > 5 && k.bid < cfg.maxBid && !(k.clk >= cfg.wasteClicks && k.cost >= cfg.wasteCost)) {
       await add(k, 'bid', k.bid * (1 + step), `최근 7일 노출 ${k.imp}회인데 평균 ${d.rank7}위로 순위가 낮아 클릭이 적음(${k.clk}회) → 유입을 늘리려 입찰가 인상 (오늘 예산 여유 있음)`, d);
     } else if (k.imp === 0) {
