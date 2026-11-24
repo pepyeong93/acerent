@@ -64,15 +64,42 @@
 /* 모바일: 차를 고르면 그 차만 보이고, '다른 차량 보기'로 목록 다시 열기 */
 .show-all { display: none; }
 @media (max-width: 760px) { #carList.picked .car-row.other { display: none; } #carList.picked .show-all { display: flex; } }
+/* 광고 · 메뉴별 안내 (지역 · 월렌트 등) — 첫 화면에서 가격 · 조건을 바로 보이게 */
+.promo { background: var(--ink); color: #fff; padding: 16px 20px; border-left: 6px solid var(--red); }
+.promo strong { display: block; font-size: 20px; line-height: 1.3; }
+.promo strong em { font-style: normal; color: #FFD200; }
+.promo .nw { white-space: nowrap; }
+.promo ul { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: #ddd; }
+.promo li::before { content: "✓ "; color: #FFD200; }
+/* 모바일: 장소 · 날짜 입력칸은 한 줄 요약으로 접고 '변경'을 누르면 펼침 */
+.search-sum { display: none; }
+@media (max-width: 760px) {
+  .page-head .crumb { display: none; }
+  .page-head h1 { font-size: 22px; }
+  .page-head { padding-top: 14px; padding-bottom: 0; }
+  .steps { font-size: 13px; } .steps li { padding: 6px 10px; }
+  .search-sum { display: flex; align-items: center; gap: 10px; background: var(--bg-soft); border: 1px solid var(--line); padding: 10px 12px; font-size: 14px; }
+  .search-sum span { flex: 1; min-width: 0; line-height: 1.5; }
+  .search-sum button { flex: none; height: 36px; padding: 0 14px; }
+  #searchForm.folded { display: none; }
+  #classTabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  #classTabs button { flex: none; height: 40px; padding: 0 12px; }
+  .short-layout { padding-top: 12px; }
+}
 </style>
 
 <div class="wrap page-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
-<div><p class="crumb">홈 &gt; 단기렌트 &gt; 실시간 예약</p><h1>단기렌트 실시간 예약</h1></div>
+<div><p class="crumb" id="crumb">홈 &gt; 단기렌트 &gt; 실시간 예약</p><h1 id="pageTitle">단기렌트 실시간 예약</h1></div>
 <ol class="steps" aria-label="예약 단계"><li class="on" id="st1">01 차량 선택</li><li id="st2">02 정보 입력</li><li id="st3">03 신청 완료</li></ol>
 </div>
 
-<section class="wrap" style="margin-top:20px">
-<form class="searchbar" id="searchForm">
+<section class="wrap" style="margin-top:16px">
+<div class="promo" id="promo" hidden></div>
+</section>
+
+<section class="wrap" style="margin-top:12px">
+<div class="search-sum" id="searchSum"><span id="searchSumText">예약 조건을 불러오는 중…</span><button class="btn" type="button" id="searchEdit">변경</button></div>
+<form class="searchbar folded" id="searchForm">
 <label class="field" style="flex:1 1 260px">대여·반납 장소<select class="select" id="loc" name="loc"></select><span class="small muted" id="locNote" hidden>탁송비는 별도로 추가됩니다.</span></label>
 <label class="field">대여 일시<input class="input" type="datetime-local" id="from" name="from" step="1800" required></label>
 <label class="field">반납 일시<input class="input" type="datetime-local" id="to" name="to" step="1800" required></label>
@@ -84,8 +111,8 @@
 <div class="short-layout">
 <div class="short-list">
 <div class="tabs-line" role="group" aria-label="차급" id="classTabs"></div>
-<p style="margin:0;padding:14px 0;font-size:14px;color:#444;border-bottom:1px solid var(--line)" aria-live="polite">선택하신 기간에 예약 가능한 차량 <strong class="red" id="availCount">0</strong>대</p>
-<div id="carList"><p class="loading">차량을 찾는 중…</p></div>
+<p style="margin:0;padding:14px 0;font-size:14px;color:#444;border-bottom:1px solid var(--line)" aria-live="polite">선택하신 기간에 예약 가능한 차량 <strong class="red" id="availCount">…</strong>대</p>
+<div id="carList"><p class="loading">예약 가능한 차량을 확인하고 있습니다…</p></div>
 <p id="soldOut" class="small muted" style="padding:20px 0"></p>
 </div>
 

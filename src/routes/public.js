@@ -60,7 +60,12 @@ export function registerPublic(r) {
   });
 
   // 단기: 기간에 맞는 예약 가능 차종 검색
-  r.get('/api/short/search', async ({ env, url }) => {
+  r.get('/api/short/search', async ({ env, url, ctx }) => {
+    // 같은 조건 조회는 60초 동안 캐시 (ERP 조회가 2초쯤 걸려 광고로 들어온 첫 화면이 늦게 뜸).
+    // 예약 신청 때는 서버가 ERP 로 다시 확인하므로 잠깐의 캐시는 안전함
+    const cache = typeof caches !== 'undefined' ? caches.default : null;
+    const cacheKey = new Request(url.toString(), { method: 'GET' });
+    if (cache) { const hit = await cache.match(cacheKey).catch(() => null); if (hit) return hit; }
     const from = url.searchParams.get('from');
     const to = url.searchParams.get('to');
     const locationId = int(url.searchParams.get('location'));
@@ -94,7 +99,9 @@ export function registerPublic(r) {
         });
       } else soldOut.push(m.name);
     }
-    return json({ days, hours, periodText: periodText(days, hours), models, soldOut });
+    const res = json({ days, hours, periodText: periodText(days, hours), models, soldOut }, 200, { 'cache-control': 'public, max-age=60' });
+    if (cache && ctx) ctx.waitUntil(cache.put(cacheKey, res.clone()).catch(() => {}));
+    return res;
   });
 
   // 단기: 예약 신청

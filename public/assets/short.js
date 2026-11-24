@@ -1,7 +1,25 @@
 import { api, $, $$, esc, won, shortDt, defaultPeriod, initLayout, setBusy, classImage, validBirth, trackConversion } from './common.js';
 
-const site = await initLayout();
 const qs = new URLSearchParams(location.search);
+// 주단위렌트(?days=7) · 월렌트(?days=30) 메뉴 · 광고
+const qDays = parseInt(qs.get('days'), 10);
+const daysMode = qDays > 0 && qDays <= 60 ? qDays : 0;
+// 월 · 주단위는 공항보다 집 근처 인수가 많아 장소 기본값을 '경기도지역'(4)으로
+const initLoc = qs.get('loc') || (daysMode ? '4' : '');
+const [df, dt] = defaultPeriod();
+const initFrom = qs.get('from') || df;
+let initTo = qs.get('to') || dt;
+if (daysMode && !qs.get('to')) {
+  const d = new Date(initFrom.slice(0, 10) + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + daysMode);
+  initTo = d.toISOString().slice(0, 10) + initFrom.slice(10);
+}
+// 장소가 정해져 있으면(광고 도착 주소) 사이트 정보와 동시에 차량 조회를 시작 — 첫 목록이 빨리 뜨게
+const searchUrl = (from, to, loc) => `/api/short/search?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&location=${loc}`;
+let prefetch = initLoc ? { url: searchUrl(initFrom, initTo, initLoc), p: api(searchUrl(initFrom, initTo, initLoc)) } : null;
+if (prefetch) prefetch.p.catch(() => {});
+
+const site = await initLayout();
 const st = { models: [], days: 0, hours: 0, periodText: '', cls: '전체', modelId: null, insId: null };
 const locs = ((site && site.locations) || []).filter((l) => l.can_pickup);
 const ins = (site && site.insurance) || [];
@@ -10,23 +28,20 @@ if (site && site.driverNote) $('#driverNote').textContent = site.driverNote;
 $('#loc').innerHTML = locs.length
   ? locs.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')
   : '<option value="">예약 장소 준비 중</option>';
-if (qs.get('loc')) $('#loc').value = qs.get('loc');
+if (initLoc && locs.some((l) => String(l.id) === initLoc)) $('#loc').value = initLoc;
 // 딜리버리 지역(서울 등)은 탁송비 별도 안내
 const locNote = () => { const l = locs.find((x) => String(x.id) === $('#loc').value); $('#locNote').hidden = !(l && l.type === '딜리버리'); };
 locNote();
 $('#loc').addEventListener('change', locNote);
-const [df, dt] = defaultPeriod();
-$('#from').value = qs.get('from') || df;
-$('#to').value = qs.get('to') || dt;
-// 주단위렌트(?days=7) · 월렌트(?days=30) 메뉴: 대여일 기준으로 반납일을 맞추고 메뉴 표시를 바꿈
-const qDays = parseInt(qs.get('days'), 10);
-if (qDays > 0 && qDays <= 60) {
-  if (!qs.get('to')) {
-    const d = new Date($('#from').value.slice(0, 10) + 'T00:00:00Z');
-    d.setUTCDate(d.getUTCDate() + qDays);
-    $('#to').value = d.toISOString().slice(0, 10) + $('#from').value.slice(10);
-  }
-  const cur = $(`.gnb a[href="/short.html?days=${qDays}"]`);
+$('#from').value = initFrom;
+$('#to').value = initTo;
+// 주단위 · 월렌트: 제목 · 메뉴 표시를 바꿈
+const modeName = daysMode === 7 ? '주단위렌트' : daysMode === 30 ? '월렌트' : daysMode ? `${daysMode}일 렌트` : '';
+if (daysMode) {
+  $('#pageTitle').textContent = `${modeName} 실시간 예약`;
+  $('#crumb').innerHTML = `홈 &gt; ${esc(modeName)} &gt; 실시간 예약`;
+  document.title = `${modeName} 실시간 예약 | 에이스렌터카`;
+  const cur = $(`.gnb a[href="/short.html?days=${daysMode}"]`);
   if (cur) {
     $$('.gnb a').forEach((a) => { a.classList.remove('on'); a.removeAttribute('aria-current'); });
     cur.classList.add('on');
@@ -34,6 +49,45 @@ if (qDays > 0 && qDays <= 60) {
   }
 }
 $('#from').min = df.slice(0, 10) + 'T00:00';
+
+// 첫 화면 안내: 어떤 광고 · 메뉴로 들어왔는지(월 · 주단위 / 장소)에 맞춰 가격 · 조건을 보여 줌
+// 가격은 조회 결과의 가장 싼 차 기준으로 채움 (요금표가 바뀌어도 자동으로 맞음)
+function promo() {
+  const l = loc();
+  const cheapest = st.models.reduce((a, m) => (!a || m.rent < a.rent ? m : a), null);
+  const price = cheapest ? `${won(cheapest.rent)}원` : '';
+  const km = cheapest && cheapest.kmText ? cheapest.kmText.split(' (')[0] : '';
+  // 일반 단기: '하루 N원부터' (차종 요금표의 1일 요금 중 최저)
+  const day1 = st.models.map((m) => (m.samples ? m.samples[0][1] : m.tiers[0])).filter((v) => v > 0);
+  const dayPrice = day1.length ? `하루 ${won(Math.min(...day1))}원` : '';
+  let title, items;
+  if (daysMode === 30 || daysMode === 7) {
+    const unit = daysMode === 30 ? '한 달' : '일주일';
+    title = price ? `${modeName} ${unit} <span class="nw"><em>${price}</em>부터</span>` : `${modeName} (${daysMode}일)`;
+    items = [km && `주행 ${km} 포함`, '자차보험 포함', '예약금 없이 신청', '전화 · 카톡 상담 가능'];
+  } else if (l && l.type === '공항') {
+    title = `${esc(l.name.replace(/ 제\dT?터미널/, ''))} 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''}`;
+    items = [`${esc(l.name)} 인수 · 반납`, l.hours === '24시간' ? '24시간 운영' : '', '자차보험 포함', '예약금 없이 신청'];
+  } else if (l && String(l.id) === '4') {
+    title = `고양 · 일산 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''}`;
+    items = ['일산 대화동 본사', l.hours === '24시간' ? '24시간 상담' : '', '자차보험 포함', '예약금 없이 신청'];
+  } else {
+    title = dayPrice ? `<span class="nw"><em>${dayPrice}</em>부터</span>` : '';
+    items = ['자차보험 포함', '예약금 없이 신청', '전화 · 카톡 상담 가능'];
+  }
+  $('#promo').hidden = !title;
+  if (title) $('#promo').innerHTML = `<strong>${title}</strong><ul>${items.filter(Boolean).map((t) => `<li>${t}</li>`).join('')}</ul>`;
+}
+
+// 모바일: 입력칸 대신 한 줄 요약 (변경을 누르면 펼침)
+function searchSum() {
+  const l = loc();
+  $('#searchSumText').textContent = `${l ? l.name : ''} · ${shortDt($('#from').value)} ~ ${shortDt($('#to').value)}${st.periodText ? ` · ${st.periodText}` : ''}`;
+}
+$('#searchEdit').addEventListener('click', () => {
+  const open = $('#searchForm').classList.toggle('folded') === false;
+  $('#searchEdit').textContent = open ? '접기' : '변경';
+});
 
 // 보험 선택지 (기본: 두 번째 = 일반 자차)
 st.insId = ins.length > 1 ? ins[1].id : ins[0] ? ins[0].id : null;
@@ -69,9 +123,14 @@ $('#searchForm').addEventListener('submit', (e) => { e.preventDefault(); search(
 async function search() {
   const from = $('#from').value, to = $('#to').value;
   if (!from || !to) return;
-  $('#carList').innerHTML = '<p class="loading">차량을 찾는 중…</p>';
+  // 조회 중에는 '0대' 대신 '…' (0대가 먼저 보이면 차가 없는 줄 알고 나가는 경우가 있음)
+  $('#availCount').textContent = '…';
+  $('#carList').innerHTML = '<p class="loading">예약 가능한 차량을 확인하고 있습니다…</p>';
+  searchSum();
   try {
-    const r = await api(`/api/short/search?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&location=${$('#loc').value}`);
+    const url = searchUrl(from, to, $('#loc').value);
+    const r = prefetch && prefetch.url === url ? await prefetch.p : await api(url);
+    prefetch = null;
     st.models = r.models;
     st.days = r.days;
     st.hours = r.hours || 0;
@@ -79,10 +138,14 @@ async function search() {
     if (!model()) st.modelId = null;
     $('#period').textContent = `총 ${st.periodText}`;
     $('#soldOut').innerHTML = r.soldOut.length ? `<strong style="color:var(--ink)">예약 마감</strong> &nbsp; ${r.soldOut.map((n) => `<span style="text-decoration:line-through">${esc(n)}</span>`).join(' &nbsp; ')}` : '';
-    history.replaceState(null, '', `?loc=${$('#loc').value}&from=${from}&to=${to}${qDays > 0 && qDays <= 60 ? `&days=${qDays}` : ''}`);
+    history.replaceState(null, '', `?loc=${$('#loc').value}&from=${from}&to=${to}${daysMode ? `&days=${daysMode}` : ''}`);
     render();
+    promo();
+    searchSum();
   } catch (e) {
+    prefetch = null;
     st.models = [];
+    promo();
     $('#period').textContent = '-';
     $('#carList').innerHTML = `<p class="empty">${esc(e.message)}</p>`;
     $('#availCount').textContent = '0';
@@ -152,6 +215,8 @@ function step(n) {
   $('#stepDone').hidden = n !== 3;
   ['#st1', '#st2', '#st3'].forEach((s, i) => $(s).classList.toggle('on', i === n - 1));
   $('.searchbar').style.display = n === 1 ? '' : 'none';
+  $('#searchSum').style.display = n === 1 ? '' : 'none';
+  $('#promo').parentElement.style.display = n === 1 ? '' : 'none';
   scrollTo({ top: 0, behavior: 'smooth' });
 }
 
