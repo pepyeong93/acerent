@@ -69,8 +69,8 @@ function promo() {
     title = `${esc(l.name.replace(/ 제\dT?터미널/, ''))} 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''}`;
     items = [`${esc(l.name)} 인수 · 반납`, l.hours === '24시간' ? '24시간 운영' : '', '자차보험 포함', '예약금 없이 신청'];
   } else if (l && String(l.id) === '4') {
-    title = `고양 · 일산 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''}`;
-    items = ['일산 대화동 본사', l.hours === '24시간' ? '24시간 상담' : '', '자차보험 포함', '예약금 없이 신청'];
+    title = `경기도 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''}`;
+    items = ['고양 · 일산 · 김포 · 파주 등 경기도 지역', '본사 일산 대화동', l.hours === '24시간' ? '24시간 상담' : '', '자차보험 포함', '예약금 없이 신청'];
   } else {
     title = dayPrice ? `<span class="nw"><em>${dayPrice}</em>부터</span>` : '';
     items = ['자차보험 포함', '예약금 없이 신청', '전화 · 카톡 상담 가능'];
