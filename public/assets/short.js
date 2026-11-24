@@ -68,6 +68,11 @@ function promo() {
   } else if (l && l.type === '공항') {
     title = `${esc(l.name.replace(/ 제\dT?터미널/, ''))} 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''}`;
     items = [`${esc(l.name)} 인수 · 반납`, l.hours === '24시간' ? '24시간 운영' : '', '자차보험 포함', '예약금 없이 신청'];
+  } else if (l && l.type === '딜리버리') {
+    // 서울 등 탁송 지역: 지역명 + 탁송비 별도를 제목에 같이 보여 줌 (가격만 보고 오해하지 않게)
+    const area = l.name.split('(')[0].trim().replace(/지역$/, '');
+    title = `${esc(area)} 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''} <span class="nw" style="font-size:15px;color:#ddd">(탁송비 별도)</span>`;
+    items = [`${esc(area)} 원하는 곳으로 차량 탁송`, '탁송비는 상담 시 안내', '자차보험 포함', '예약금 없이 신청'];
   } else if (l && String(l.id) === '4') {
     title = `경기도 렌트카${dayPrice ? ` <span class="nw"><em>${dayPrice}</em>부터</span>` : ''}`;
     items = ['고양 · 일산 · 김포 · 파주 등 경기도 지역', '본사 일산 대화동', l.hours === '24시간' ? '24시간 상담' : '', '자차보험 포함', '예약금 없이 신청'];
