@@ -99,12 +99,3 @@ export const updateCampaignBudget = (env, campaign, dailyBudget) =>
     query: { fields: 'budget' },
     body: { ...campaign, useDailyBudget: true, dailyBudget },
   });
-
-// ── 노출 매체 · 확장 검색 (광고그룹) ──
-export const getAdgroup = (env, id) => adsApi(env, 'GET', `/ncc/adgroups/${id}`);
-export const listTargets = (env, ownerId, types) => adsApi(env, 'GET', '/ncc/targets', { query: { ownerId, types } });
-// 확장 검색 끄기/켜기: 광고그룹 전체를 받아 useExpSearch 만 바꿔 다시 저장
-export async function setExpSearch(env, id, on) {
-  const g = await getAdgroup(env, id);
-  return adsApi(env, 'PUT', `/ncc/adgroups/${id}`, { body: { ...g, useExpSearch: !!on } });
-}
