@@ -1,6 +1,8 @@
 // 관리자: 네이버 광고 자동 관리 (/api/admin/ads/*, 로그인 필요)
 import { json, readJson, bad, int } from '../lib/util.js';
-import { adsEnabled } from '../lib/naverAds.js';
+import { adsEnabled, listCampaigns, listAdgroups, listTargets, getAdgroup, setExpSearch } from '../lib/naverAds.js';
+import { SETUP_PLAN } from '../lib/adsSetup.js';
+const OUR_CAMPAIGN = SETUP_PLAN.campaign.name;
 import { loadConfig, DEFAULT_CONFIG, runHourly, runDaily, applyProposal, kstDay } from '../lib/adsEngine.js';
 
 const numKeys = ['dailyBudget', 'maxBid', 'minBid', 'targetRank', 'maxChangePct', 'wasteCost', 'wasteClicks', 'discoveryMinVolume', 'discoveryLimit'];
@@ -92,3 +94,27 @@ export function registerAds(r) {
 function safe(s) {
   try { return JSON.parse(s || '{}'); } catch { return {}; }
 }
+  // 노출 매체 · 확장 검색 현황 (우리 캠페인 광고그룹)
+  r.get('/api/admin/ads/media', async ({ env }) => {
+    if (!adsEnabled(env)) throw bad('네이버 광고 API 키가 아직 연결되지 않았습니다.');
+    const camps = (await listCampaigns(env)) || [];
+    const items = [];
+    for (const c of camps.filter((x) => x.name === OUR_CAMPAIGN)) {
+      for (const g of (await listAdgroups(env, c.nccCampaignId)) || []) {
+        let media = null;
+        try { media = ((await listTargets(env, g.nccAdgroupId, 'MEDIA_TARGET')) || [])[0] || null; } catch (e) { media = { error: String(e.message || e) }; }
+        items.push({ id: g.nccAdgroupId, name: g.name, campaign: c.name, userLock: g.userLock, useExpSearch: g.useExpSearch, useCntsNetworkBidAmt: g.useCntsNetworkBidAmt, contentsNetworkBidAmt: g.contentsNetworkBidAmt, contentsNetworkBidWeight: g.contentsNetworkBidWeight, media });
+      }
+    }
+    return json({ items });
+  });
+
+  // 확장 검색 끄기 (관리자가 버튼을 눌렀을 때만)
+  r.post('/api/admin/ads/media/:id/exp-off', async ({ env, params }) => {
+    try {
+      await setExpSearch(env, params.id, false);
+      const g = await getAdgroup(env, params.id);
+      return json({ ok: g.useExpSearch === false, useExpSearch: g.useExpSearch });
+    } catch (e) { throw bad(String(e.message || e)); }
+  });
+

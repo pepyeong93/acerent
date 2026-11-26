@@ -941,7 +941,7 @@ PAGES.ads = async () => {
   const TYPE = { bid: '입찰가 변경', pause: '키워드 중지', add_keyword: '새 키워드 추가', budget: '캠페인 하루 예산', delete_campaign: '캠페인 삭제', setup: '새 캠페인 만들기', setup_fix: '빠진 광고 문구 채우기' };
   const STS = { pending: ['승인 대기', 'st-wait'], applied: ['적용 완료', 'st-ok'], rejected: ['거절', 'st-off'], failed: ['적용 실패', 'st-wait'], expired: ['기간 지남', 'st-off'] };
   const c = st.config;
-  const TABS = [['pending', `승인 대기 ${st.pending ? '(' + st.pending + ')' : ''}`], ['done', '처리 기록'], ['keywords', '키워드 현황'], ['reports', '일별 리포트'], ['config', '설정']];
+  const TABS = [['pending', `승인 대기 ${st.pending ? '(' + st.pending + ')' : ''}`], ['done', '처리 기록'], ['keywords', '키워드 현황'], ['media', '노출 매체'],['reports', '일별 리포트'], ['config', '설정']];
   main.innerHTML = `<div class="a-title"><div><h1>네이버 광고 (제안 · 리포트)</h1><p class="desc">매시간 네이버 검색광고의 키워드 · 입찰가 · 성과를 분석해 변경을 <strong>제안</strong>합니다. <strong>승인</strong>을 누르면 그 자리에서 네이버 광고에 바로 적용되고, 승인하지 않은 변경은 절대 적용하지 않습니다. 매일 오전 9시 무렵 전날 성과 리포트와 새 키워드 추천을 만들고, 알림 메일(종류 '광고 제안' · '광고 리포트')로도 보냅니다.</p></div>
 <div style="display:flex;gap:6px">${st.enabled ? '<button class="btn btn-sm" id="adsRun">지금 분석</button><button class="btn btn-sm" id="adsDaily">리포트 · 추천 만들기</button>' : ''}</div></div>
 ${st.enabled ? '' : `<div class="box box-pad" style="border-left:4px solid var(--red);margin-bottom:12px"><strong>네이버 광고 API 키가 아직 연결되지 않았습니다.</strong><p class="hint" style="margin:6px 0 0;line-height:1.8">Cloudflare 비밀값 NAVER_AD_API_KEY(엑세스라이선스) · NAVER_AD_SECRET(비밀키) · NAVER_AD_CUSTOMER_ID(고객 ID)를 저장하면 바로 동작합니다. 키는 홈페이지 코드 · DB 에 저장되지 않습니다.</p></div>`}
@@ -982,6 +982,21 @@ ${items.length ? items.map((x) => `<tr data-id="${x.id}"><td><strong>${TYPE[x.ty
     body.innerHTML = `<div class="box scroll-x"><table class="a-table" style="min-width:900px"><thead><tr><th>키워드</th><th>광고그룹</th><th class="num">입찰가</th><th class="num">노출</th><th class="num">클릭</th><th class="num">비용</th><th class="num">전환</th><th class="num">평균 순위</th></tr></thead><tbody>
 ${items.length ? items.map((k) => `<tr${k.paused ? ' style="opacity:.5"' : ''}><td><strong>${esc(k.keyword)}</strong>${k.paused ? ' <span class="st st-off">중지</span>' : ''}</td><td><span class="hint">${esc(k.campaign_name)} › ${esc(k.adgroup_name)}</span></td><td class="num">${W(k.bid)}</td><td class="num">${N(k.imp)}</td><td class="num">${N(k.clk)}</td><td class="num">${W(k.cost)}</td><td class="num">${k.conv ? '<strong class="red">' + N(k.conv) + '</strong>' : 0}</td><td class="num">${k.rank || '-'}</td></tr>`).join('') : '<tr><td colspan="8" class="muted" style="padding:40px;text-align:center">아직 불러온 키워드가 없습니다. API 키 연결 후 \'지금 분석\'을 눌러 주세요.</td></tr>'}
 </tbody></table></div><p class="hint">최근 7일 합계 · 비용은 VAT 제외</p>`;
+  } else if (tab === 'media') {
+    const { items } = await api('/api/admin/ads/media');
+    const onoff = (v) => v === false ? '<span class="st st-ok">꺼짐</span>' : v === true ? '<span class="st st-wait">켜짐</span>' : '<span class="st st-off">알 수 없음</span>';
+    body.innerHTML = `<div class="box scroll-x"><table class="a-table" style="min-width:800px"><thead><tr><th>광고그룹</th><th>확장 검색</th><th>콘텐츠 매체 설정 (네이버 원본 값)</th></tr></thead><tbody>
+${items.length ? items.map((g) => `<tr data-g="${esc(g.id)}"><td><strong>${esc(g.name)}</strong>${g.userLock ? ' <span class="st st-off">중지</span>' : ''}<br><span class="hint">${esc(g.id)}</span></td>
+<td style="white-space:nowrap">${onoff(g.useExpSearch)} ${g.useExpSearch !== false ? '<button class="btn btn-xs btn-red" data-exp>끄기</button>' : ''}</td>
+<td><pre style="white-space:pre-wrap;font-size:12px;margin:0;max-width:520px">${esc(JSON.stringify({ media: g.media && g.media.target !== undefined ? g.media.target : g.media, useCntsNetworkBidAmt: g.useCntsNetworkBidAmt, contentsNetworkBidAmt: g.contentsNetworkBidAmt, contentsNetworkBidWeight: g.contentsNetworkBidWeight }))}</pre></td></tr>`).join('') : '<tr><td colspan="3" class="muted" style="padding:40px;text-align:center">광고그룹을 찾지 못했습니다.</td></tr>'}
+</tbody></table></div><p class="hint">확장 검색: 등록한 키워드와 비슷한 검색어에도 광고를 내보내는 기능입니다. 끄면 등록한 키워드로만 노출됩니다. 콘텐츠 매체 끄기 버튼은 설정 형식을 확인한 뒤 추가됩니다.</p>`;
+    $$('tr[data-g] [data-exp]').forEach((b) => b.addEventListener('click', async () => {
+      const tr = b.closest('tr');
+      if (!(await confirmBox(`${$('strong', tr).textContent} 광고그룹의 확장 검색을 끌까요? 네이버 광고에 바로 적용됩니다.`, '끄기'))) return;
+      b.disabled = true;
+      try { const r = await run(() => api(`/api/admin/ads/media/${tr.dataset.g}/exp-off`, { method: 'POST' })); toast(r.ok ? '확장 검색을 껐습니다.' : '저장은 됐지만 네이버에서 아직 켜짐으로 보입니다. 잠시 뒤 다시 확인해 주세요.'); } catch {}
+      route();
+    }));
   } else if (tab === 'reports') {
     const { items } = await api('/api/admin/ads/reports');
     body.innerHTML = items.length ? items.map((r) => { const s = r.summary, t = s.total || {}; return `<div class="box box-pad" style="margin-bottom:12px">
